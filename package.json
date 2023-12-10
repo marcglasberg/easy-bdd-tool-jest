@@ -1,0 +1,73 @@
+{
+  "name": "@marcglasberg/bdd_framework_for_jest",
+  "version": "1.0.0",
+  "description": "BDD framework for Jest. Lets you create BDD tests in code, and gives you easy to read error messages when assertions fail. Exports to Gherkin/Cucumber feature files.",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./lib/esm/types/index.d.ts",
+        "default": "./lib/esm/index.mjs"
+      },
+      "require": {
+        "types": "./lib/cjs/types/index.d.ts",
+        "default": "./lib/cjs/index.js"
+      }
+    }
+  },
+  "types": "./lib/cjs/types/index.d.ts",
+  "main": "./lib/cjs/index.js",
+  "files": [
+    "lib/**/*"
+  ],
+  "scripts": {
+    "clean": "del-cli ./lib",
+    "build": "npm run clean && npm run build:esm && npm run build:cjs",
+    "build:esm": "tsc -p ./tsconfig.esm.json && node ./node_modules/move-file/index.js lib/esm/index.js lib/esm/index.mjs",
+    "build:cjs": "tsc -p ./tsconfig.cjs.json",
+    "test": "jest",
+    "semantic-release": "semantic-release",
+    "prepack": "npm run build"
+  },
+  "release": {
+    "branches": [
+      "main"
+    ]
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/marcglasberg/bdd_framework_for_jest.git"
+  },
+  "keywords": [
+    "bdd",
+    "test",
+    "testing",
+    "jest",
+    "tdd",
+    "assertion"
+  ],
+  "author": "Marcelo Glasberg",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/marcglasberg/bdd_framework_for_jest/issues"
+  },
+  "homepage": "https://github.com/marcglasberg/bdd_framework_for_jest#readme",
+  "dependencies": {
+    "jest": "^29.2.1"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.20.0",
+    "@babel/preset-env": "^7.20.0",
+    "@babel/preset-typescript": "^7.23.2",
+    "@babel/runtime": "^7.20.0",
+    "babel-jest": "^29.2.1",
+    "del-cli": "^5.1.0",
+    "eslint": "^8.54.0",
+    "move-file": "^3.1.0",
+    "prettier": "^2.4.1",
+    "semantic-release": "^19.0.3",
+    "typescript": "4.8.4"
+  }
+}
