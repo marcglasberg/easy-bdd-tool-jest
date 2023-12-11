@@ -900,7 +900,7 @@ The output of each BDD will be printed to the console, and the output will be co
 
 For tests that **fail** you'll get the error stacktrace, and the failing description.
 
-<img src="https://raw.githubusercontent.com/marcglasberg/bdd_framework_for_jest/main/readme_images/test_output.png" width="850" alt="console screenshot"/>
+<img src="https://raw.githubusercontent.com/marcglasberg/bdd_framework_for_jest/main/readme_images/test_output.png" width="700" alt="console screenshot"/>
 
 <br>
 
