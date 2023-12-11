@@ -3,7 +3,7 @@
 This package aims to be the simplest way to write <a href='https://en.wikipedia.org/wiki/Behavior-driven_development'>
 Behavior Driven Development (BDD)</a> tests **in Jest** for your TypeScript and JavaScript projects.
 
-Most other npm packages are not BDD specific, or they're just too hard to use.
+Most other npm packages are not BDD specific, or they're just too hard to use (like Cucumber.js, in my opinion).
 
 This package doesn't need "glue files" or any generated code. This is a code example:
 
