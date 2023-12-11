@@ -1,15 +1,29 @@
 # BDD Framework For Jest
 
-This package supports and simplifies <a href='https://en.wikipedia.org/wiki/Behavior-driven_development'>Behavior
-Driven Development (BDD)</a>, making it easier to test your TypeScript or JavaScript code **with Jest**.
+This package aims to be the simplest way to write <a href='https://en.wikipedia.org/wiki/Behavior-driven_development'>
+Behavior Driven Development (BDD)</a> tests **in Jest** for your TypeScript and JavaScript projects.
 
-There are many npm packages out there that say they help with BDD, but a lot of them don't really concentrate on BDD the
-way they should, or they're just too hard to use.
+Most other npm packages are not BDD specific, or they're just too hard to use.
+
+This package doesn't need "glue files" or any generated code. This is a code example:
 
 <img src="https://raw.githubusercontent.com/marcglasberg/bdd_framework_for_jest/main/readme_images/code_example.png" width="600" alt="code example"/>
-          
+
+When you run your BDDs in the IDE, your tests will be listed in the left panel, numbered as `1`, `2` etc.
+For BDDs that run more than once with different values, each run is going to be numbered with an index, like: `1₁`
+and `1₂`.
+
+The output of each BDD will be printed with color to the console.
+For tests that **fail** you'll get the error stacktrace, and the failing description.
+
+A screenshot for the IntelliJ IDE:
+
+<img src="https://raw.githubusercontent.com/marcglasberg/bdd_framework_for_jest/main/readme_images/test_output.png" width="750" alt="console screenshot"/>
+
 > _Note there is also a version of this package for <a href="https://pub.dev/packages/bdd_framework">Flutter/Dart</a>._
-     
+ 
+---
+
 ## What is it?
 
 BDD is a fantastic development technique that empowers you to build comprehensive, well-documented,
@@ -886,25 +900,6 @@ Bdd(feature)
         expect(store.portfolio.getStock('IBM').averagePrice).toBe(averagePrice);
     });
 ```
-
----
-
-## 11. Console output
-
-When you run your BDDs in the IntelliJ IDE, your tests will be listed in the left panel. The tests
-will be numbered as `1`, `2` etc.
-
-Since BDDs with an `Examples` section run more than once, each run is going to
-be numbered with an index. For example, if the fourth BDD has two examples, we'll get `4₁` and `4₂`
-(see in the image below).
-
-The output of each BDD will be printed to the console, and the output will be colored.
-
-For tests that **fail** you'll get the error stacktrace, and the failing description.
-
-<img src="https://raw.githubusercontent.com/marcglasberg/bdd_framework_for_jest/main/readme_images/test_output.png" width="850" alt="console screenshot"/>
-
-<br>
 
 ---
 
