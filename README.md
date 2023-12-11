@@ -6,7 +6,7 @@ Driven Development (BDD)</a>, making it easier to test your TypeScript or JavaSc
 There are many npm packages out there that say they help with BDD, but a lot of them don't really concentrate on BDD the
 way they should, or they're just too hard to use.
 
-<img src="https://raw.githubusercontent.com/marcglasberg/bdd_framework_for_jest/main/readme_images/code_example.png" width="850" alt="code example"/>
+<img src="https://raw.githubusercontent.com/marcglasberg/bdd_framework_for_jest/main/readme_images/code_example.png" width="700" alt="code example"/>
           
 > _Note there is also a version of this package for <a href="https://pub.dev/packages/bdd_framework">Flutter/Dart</a>._
      
@@ -902,7 +902,7 @@ The output of each BDD will be printed to the console, and the output will be co
 
 For tests that **fail** you'll get the error stacktrace, and the failing description.
 
-<img src="https://raw.githubusercontent.com/marcglasberg/bdd_framework_for_jest/main/readme_images/test_output.png" width="700" alt="console screenshot"/>
+<img src="https://raw.githubusercontent.com/marcglasberg/bdd_framework_for_jest/main/readme_images/test_output.png" width="850" alt="console screenshot"/>
 
 <br>
 
