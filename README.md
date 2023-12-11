@@ -433,6 +433,8 @@ directory of this GitHub repository:
 * <a href="https://github.com/marcglasberg/SameAppDifferentTech/blob/main/MobileAppReactNativeMobX/__tests__/bdd.BuyAndSell.test.ts">
   bdd.BuyAndSell.test.ts</a>
 
+Note, I have prefixed the file names with `bdd.`, but that's not necessary.
+
 These BDD test files encompass a total of 3 BDDs, each illustrating different aspects of the current BDD Framework. It's
 worth noting that one of these files includes an Examples section with two rows, meaning it will execute twice, each
 time with different data.
