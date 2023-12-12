@@ -901,6 +901,48 @@ Bdd(feature)
     });
 ```
 
+## Final notes
+
+### Using Jest features
+
+Bdd tests use Jest under the hood, so you can use all the features of Jest in your BDD tests,
+like `beforeEach` and `afterEach`.
+
+You can even mix BDD tests with regular Jest tests in the same file, even though that's not very common:
+
+```typescript
+beforeEach(async () => {
+  calculator.clear();
+});
+
+const feature = new Feature('Calculator');
+
+Bdd(feature)
+        .scenario('Adding numbers')
+        .given('The numbers 1 and 2.')
+        .when('The numbers are added.')
+        .then('The result is 3.')
+        .run((ctx) => {
+          expect(calculator.press(1).press('+').press(2).press('=')).toBe(3);
+        });
+
+it('multiplies numbers', (): void => {
+  expect(calculator.press(2).press('*').press(3).press('=')).toBe(6);
+});
+```
+
+### Running tests
+
+To run the BDD tests, you can use the command line, similar to how you would run typical Jest tests.
+Or you can use your IDE's built-in test runner. In IntelliJ, for example, you can create a "Run Configuration"
+to execute tests.
+
+Additionally, in most IDEs, you can execute standard Jest test files by clicking the play button `⏵` 
+shown in the file editor.
+In the future I'll publish plugins for IntelliJ and Visual Code, enabling this play button to appear beside each BDD
+test name and on the file itself. Currently, the play button is visible only for files that include standard Jest tests,
+and also when you right-click on folders containing these standard tests.
+
 ---
 
 <br>_**Marcelo Glasberg**_<br>
