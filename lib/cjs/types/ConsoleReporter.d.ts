@@ -1,4 +1,4 @@
-import { BddReporter } from './Bdd';
+import { BddReporter } from "./BddReporter";
 export declare class ConsoleReporter extends BddReporter {
     report(): Promise<void>;
 }

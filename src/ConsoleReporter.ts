@@ -1,19 +1,20 @@
-import { Feature, BddReporter } from './Bdd';
+import {BddReporter} from "./BddReporter";
+import {Feature} from "./Feature";
 
 export class ConsoleReporter extends BddReporter {
   public async report(): Promise<void> {
     let output: string = '';
 
-    for (const feature of this.features as Set<Feature>) {
-      if (feature.testResults.length > 0) {  // Assuming 'feature' has a 'testResults' property
-        const featureStr = feature.toString();  // Assuming 'feature' has a 'toString' method
+    this.features.forEach((feature: Feature) => {
+      if (feature.testResults.length > 0) {
+        const featureStr = feature.toString();
         output += featureStr + '\n';
-      }
 
-      for (const testResult of feature.testResults) {
-        output += testResult.toString() + '\n';  // Assuming 'testResult' has a 'toString' method
+        feature.testResults.forEach(testResult => {
+          output += testResult.toString() + '\n';
+        });
       }
-    }
+    });
 
     console.log(output);
   }

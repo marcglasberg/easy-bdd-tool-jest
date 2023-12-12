@@ -1,6 +1,6 @@
 {
   "name": "@marcglasberg/bdd_framework_for_jest",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "description": "BDD framework for Jest. Lets you create BDD tests in code, and gives you easy to read error messages when assertions fail. Exports to Gherkin/Cucumber feature files.",
   "exports": {
     ".": {

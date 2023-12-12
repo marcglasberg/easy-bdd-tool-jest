@@ -1,30 +1,19 @@
 /* eslint-disable @typescript-eslint/no-shadow */
 // noinspection JSUnusedGlobalSymbols,UnnecessaryLocalVariableJS,DuplicatedCode
 
-import {afterAll, test} from '@jest/globals';
+import {test} from '@jest/globals';
+import {TableValues} from "./TableValues";
+import {Feature} from "./Feature";
+import {Row} from "./row";
+import {Val} from "./val";
+import {Context} from "./Context";
+import {BddReporter} from "./BddReporter";
+import {Config} from "./Config";
+import {Keywords} from "./Keywords";
+import {BddError} from "./BddError";
+import {MultipleTableValues} from "./MultipleTableValues";
 
-class BddError extends Error {
-    constructor(message: string) {
-        super(message);
-        this.name = 'AssertionError';
-    }
-}
-
-class Context {
-    example: TableValues;
-    private _table: MultipleTableValues;
-
-    constructor(example: TableValues, _table: MultipleTableValues) {
-        this.example = example;
-        this._table = _table;
-    }
-
-    table(tableName: string): TableRows {
-        return new TableRows(this._table.row(tableName));
-    }
-}
-
-class TableRows {
+export class TableRows {
     private readonly _values: TableValues[];
 
     constructor(values: TableValues[]) {
@@ -76,268 +65,8 @@ class TableRows {
     }
 }
 
-
-class MultipleTableValues {
-    private _tables: Map<string, TableValues[]>;
-
-    constructor(tables: Map<string, TableValues[]>) {
-        this._tables = tables;
-    }
-
-    static from(tableTerms: TableTerm[]): MultipleTableValues {
-        let _tables: Map<string, TableValues[]> = new Map();
-        tableTerms.forEach((_table) => {
-            let tableValues = _table.rows.map((r) => TableValues.from(r.values));
-            _tables.set(_table.tableName, tableValues);
-        });
-        return new MultipleTableValues(_tables);
-    }
-
-    row(tableName: string): TableValues[] {
-        const table = this._tables.get(tableName);
-        if (table === undefined)
-            throw new BddError(`There is no table named "${tableName}".`);
-        return table;
-    }
-
-    toString(): string {
-        let str = '';
-        this._tables.forEach((value, key) => {
-            str += `${key}: ${JSON.stringify(value)}, `;
-        });
-        return str;
-    }
-}
-
-export class TableValues {
-    private _map: Map<string, any>;
-
-    constructor(map: Map<string, any>) {
-        this._map = map;
-    }
-
-    static from(exampleRow: Iterable<Val> | null): TableValues {
-        let _map = new Map<string, any>();
-        exampleRow = exampleRow || [];
-
-        // TODO: REMOVE:
-        // for (const _val of exampleRow) {
-        //     _map.set(_val.name, _val.value);
-        // }
-        for (const _val of Array.from(exampleRow)) {
-            _map.set(_val.name, _val.value);
-        }
-
-        return new TableValues(_map);
-    }
-
-    val(name: string): any {
-        return this._map.get(name) ?? null;
-    }
-
-    toString(): string {
-        return this._map.toString();
-    }
-}
-
-/**
- * This interface helps to format values in Examples and Tables.
- * If a value implements the [BddDescribe] interface, or if it has a
- * [describe] method, it will be used to format the value.
- */
-interface Describe {
-    describe(): any;
-}
-
 export function Bdd(feature?: Feature): BDD {
     return new BDD(feature);
-}
-
-export function row(v1: Val, v2?: Val, v3?: Val, v4?: Val, v5?: Val, v6?: Val, v7?: Val, v8?: Val,
-                    v9?: Val, v10?: Val, v11?: Val, v12?: Val, v13?: Val, v14?: Val, v15?: Val, v16?: Val): Row {
-    return new Row(v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15, v16);
-}
-
-class Row {
-    values: Val[];
-
-    constructor(
-        v1: Val, v2?: Val, v3?: Val, v4?: Val, v5?: Val, v6?: Val, v7?: Val, v8?: Val,
-        v9?: Val, v10?: Val, v11?: Val, v12?: Val, v13?: Val, v14?: Val, v15?: Val, v16?: Val,
-    ) {
-        const values = [v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15, v16];
-        this.values = values.filter((v): v is Val => v !== undefined && v !== null);
-    }
-}
-
-export function val(name: string, _: any): Val {
-    return new Val(name, _);
-}
-
-class Val {
-    name: string;
-    value: any;
-
-    constructor(name: string, value: any) {
-        this.name = name;
-        this.value = value;
-    }
-
-    /**
-     * These 3 steps will be applied to format a value in Examples and Tables:
-     *
-     * 1) If a [Config.transformDescribe] was provided, it will be used to format the value.
-     *
-     * 2) Next, if the value implements the [BddDescribe] interface, or if it has a
-     * [describe] method, it will be used to format the value.
-     *
-     * 3) Last, we'll call the value's [toString] method.
-     */
-    toString(config: Config = Config._default): string {
-        let _value = this.value;
-
-        // 1)
-        if (config.transformDescribe) {
-            _value = config.transformDescribe(this.value) || _value;
-        }
-
-        // 2)
-        if ((<Describe>_value).describe) {
-            let description = (<Describe>_value).describe();
-            return (description === null) ? 'NULL' : description.toString();
-        }
-
-        // 3)
-        else return (_value === null) ? 'NULL' : _value.toString();
-    }
-}
-
-class Keywords {
-    feature: string;
-    scenario: string;
-    scenarioOutline: string;
-    given: string;
-    when: string;
-    then: string;
-    and: string;
-    but: string;
-    comment: string;
-    examples: string;
-    table: string;
-
-    static readonly empty = new Keywords({
-        feature: '',
-        scenario: '',
-        scenarioOutline: '',
-        given: '',
-        when: '',
-        then: '',
-        and: '',
-        but: '',
-        comment: '',
-        examples: '',
-        table: '',
-    });
-
-    constructor({
-                    feature = 'Feature:',
-                    scenario = 'Scenario:',
-                    scenarioOutline = 'Scenario Outline:',
-                    given = 'Given',
-                    when = 'When',
-                    then = 'Then',
-                    and = 'And',
-                    but = 'But',
-                    comment = '#',
-                    examples = 'Examples:',
-                    table = '',
-                }) {
-        this.feature = feature;
-        this.scenario = scenario;
-        this.scenarioOutline = scenarioOutline;
-        this.given = given;
-        this.when = when;
-        this.then = then;
-        this.and = and;
-        this.but = but;
-        this.comment = comment;
-        this.examples = examples;
-        this.table = table;
-    }
-}
-
-class Config {
-    /** The keywords themselves. */
-    keywords: Keywords;
-
-    /**
-     * The [prefix] is after the keywords and before the term.
-     * The [suffix] is after the term.
-     */
-    prefix: Keywords;
-    suffix: Keywords;
-
-    /**
-     * The [keywordPrefix] is before the keyword.
-     * The [keywordSuffix] is after the keyword.
-     */
-    keywordPrefix: Keywords;
-    keywordSuffix: Keywords;
-
-    indent: number;
-    rightAlignKeywords: boolean;
-    padChar: string;
-    endOfLineChar: string;
-    tableDivider: string;
-    space: string;
-
-    /**
-     * In tables and examples the output of values to feature files is done with toString().
-     * However, this can be overridden here for your business classes.
-     * Note: If you return `null` the values won't be changed.
-     *
-     * Example:
-     * ```
-     * Object? transformDescribe(Object? obj) {
-     *   if (obj is User) return obj.userName;
-     * }
-     * ```
-     */
-    transformDescribe: ((obj: any) => any) | null;
-
-    static readonly _default = new Config({});
-
-    constructor({
-                    keywords = new Keywords({}),
-                    prefix = Keywords.empty,
-                    suffix = Keywords.empty,
-                    keywordPrefix = Keywords.empty,
-                    keywordSuffix = Keywords.empty,
-                    indent = 2,
-                    rightAlignKeywords = false,
-                    padChar = ' ',
-                    endOfLineChar = '\n',
-                    tableDivider = '|',
-                    space = ' ',
-                    transformDescribe = null,
-                }) {
-        this.keywords = keywords;
-        this.prefix = prefix;
-        this.suffix = suffix;
-        this.keywordPrefix = keywordPrefix;
-        this.keywordSuffix = keywordSuffix;
-        this.indent = indent;
-        this.rightAlignKeywords = rightAlignKeywords;
-        this.padChar = padChar;
-        this.endOfLineChar = endOfLineChar;
-        this.tableDivider = tableDivider;
-        this.space = space;
-        this.transformDescribe = transformDescribe;
-    }
-
-    get spaces(): string {
-        return this.padChar.repeat(this.indent);
-    }
 }
 
 abstract class _BaseTerm {
@@ -356,7 +85,7 @@ enum _Variation {
     note,
 }
 
-abstract class Term extends _BaseTerm {
+export abstract class Term extends _BaseTerm {
     readonly text: string;
     readonly variation: _Variation;
 
@@ -494,7 +223,7 @@ abstract class CodeTerm extends _BaseTerm {
     }
 }
 
-class BDD {
+export class BDD {
     feature?: Feature;
     terms: _BaseTerm[];
     _timeout?: number;
@@ -1304,7 +1033,7 @@ class _ThenCode extends CodeTerm {
     }
 }
 
-class TableTerm extends Term {
+export class TableTerm extends Term {
     tableName: string;
     rows: Row[] = [];
 
@@ -1866,194 +1595,6 @@ class ThenTable extends TableTerm {
     testRun(code: CodeRun, reporter: BddReporter): BDD {
         new _TestRun(code, reporter).run(this.bdd);
         return this.bdd;
-    }
-}
-
-export class TestResult {
-    private _bdd: BDD;
-
-    constructor(bdd: BDD) {
-        this._bdd = bdd;
-    }
-
-    get terms(): Iterable<Term> {
-        return this._bdd.textTerms;
-    }
-
-    toMap(config: Config = Config._default): string[] {
-        return this._bdd.toMap(config);
-    }
-
-    toString(config: Config = Config._default): string {
-        return this._bdd.toString(config);
-    }
-
-    get wasSkipped(): boolean {
-        return this._bdd._skip;
-    }
-
-    /**
-     * Empty means the test was not run yet.
-     * If the Bdd has no examples, the result will be a single value.
-     * Otherwise, it will have one result for each example.
-     *
-     * For each value:
-     * True values means it passed.
-     * False values means it did not pass.
-     */
-    get passed(): boolean[] {
-        return this._bdd.passed;
-    }
-}
-
-export class Feature {
-    readonly title: string;
-    readonly description?: string;
-    private readonly _bdds: BDD[];
-
-    constructor(title: string, description?: string) {
-        this.title = title;
-        this.description = description;
-        this._bdds = [];
-    }
-
-    get bdds(): BDD[] {
-        return [...this._bdds];
-    }
-
-    get isEmpty(): boolean {
-        return this.title.length === 0;
-    }
-
-    get isNotEmpty(): boolean {
-        return this.title.length > 0;
-    }
-
-    get testResults(): TestResult[] {
-        return this._bdds.map(bdd => new TestResult(bdd));
-    }
-
-    add(bdd: BDD): void {
-        this._bdds.push(bdd);
-    }
-
-    toString(config: Config = Config._default): string {
-        let result = config.keywordPrefix.feature +
-            config.keywords.feature +
-            config.keywordSuffix.feature +
-            ' ' +
-            config.prefix.feature +
-            this.title +
-            config.suffix.feature +
-            config.endOfLineChar;
-
-        if (this.description) {
-            const parts = this.description.trim().split('\n');
-            result += config.spaces +
-                config.prefix.feature +
-                parts.join(config.endOfLineChar + config.spaces) +
-                config.suffix.feature +
-                config.endOfLineChar;
-        }
-
-        return result;
-    }
-}
-
-class _RunInfo {
-    totalTestCount: number = 0;
-    testCount: number = 0;
-    skipCount: number = 0;
-    passedCount: number = 0;
-    failedCount: number = 0;
-}
-
-export function reporter(r1?: BddReporter, r2?: BddReporter, r3?: BddReporter, r4?: BddReporter, r5?: BddReporter): void {
-    BddReporter.set(r1, r2, r3, r4, r5);
-}
-
-/**
- * Example:
- *
- * ```
- * void main() async {
- *   BddReporter.set(ConsoleReporter(), FeatureFileReporter());
- *   group('favorites_test', favorites_test.main);
- *   group('search_test', search_test.main);
- *   await BddReporter.reportAll();
- * }
- * ```
- */
-export abstract class BddReporter {
-
-    /** Subclasses must implement this. */
-    abstract report(): Promise<void>;
-
-    static runInfo = new _RunInfo();
-    private static _emptyFeature = new Feature('');
-    public static _reporters: BddReporter[] = [];
-    static yellow: string = '\x1B[38;5;226m';
-    static reset: string = '\u001b[0m';
-
-    // Static method to set reporters.
-    static set(r1?: BddReporter, r2?: BddReporter, r3?: BddReporter, r4?: BddReporter, r5?: BddReporter): void {
-        BddReporter._reporters = [r1, r2, r3, r4, r5].filter(_reporter => _reporter !== undefined) as BddReporter[];
-        BddReporter._reportAll();
-    }
-
-    private static _reportAll() {
-
-        afterAll(async () => {
-
-            // TODO: Move this to a Jest Custom Reporter?
-            // console.log(
-            //   `${this.yellow}\n` +
-            //   'RESULTS ════════════════════════════════════════════════\n' +
-            //   `TOTAL: ${this.runInfo.totalTestCount} tests (${this.runInfo.testCount} BDDs)\n` +
-            //   `PASSED: ${this.runInfo.passedCount} tests\n` +
-            //   `FAILED: ${this.runInfo.failedCount} tests\n` +
-            //   `SKIPPED: ${this.runInfo.skipCount} tests\n` +
-            //   `══════════════════════════════════════════════════════${this.reset}\n\n`,
-            // );
-
-            for (const _reporter of this._reporters) {
-
-                // TODO: Move this to a Jest Custom Reporter?
-                // console.log(`Running the ${_reporter.constructor.name}...\n`);
-
-                await _reporter.report();
-            }
-        });
-    }
-
-    features: Set<Feature> = new Set();
-
-    public _addBdd(bdd: BDD): void {
-
-        // Use the feature, if provided. Otherwise, use the "empty feature".
-        let _feature = bdd.feature ?? BddReporter._emptyFeature;
-
-        // We must find out if we already have a feature with the given title.
-        // If we do, use the one we already have.
-        let feature = Array.from(this.features).find(f => f.title === _feature.title);
-
-        // If we don't, use the new one provided, and put it in the features set.
-        if (feature === undefined) {
-            feature = _feature;
-            this.features.add(feature);
-        }
-
-        // Add the bdd to the feature.
-        feature.add(bdd);
-    }
-
-    /** Keeps A-Z 0-9, make it lowercase, and change spaces into underline. */
-    normalizeFileName(name: string): string {
-        return name.trim().split('').map(char => {
-            if (char === ' ') return '_';
-            if (!/[A-Za-z0-9]/.test(char)) return '';
-            return char.toLowerCase();
-        }).join('');
     }
 }
 

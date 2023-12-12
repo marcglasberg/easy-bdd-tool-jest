@@ -1,10 +1,11 @@
-declare class Context {
-    example: TableValues;
-    private _table;
-    constructor(example: TableValues, _table: MultipleTableValues);
-    table(tableName: string): TableRows;
-}
-declare class TableRows {
+import { TableValues } from "./TableValues";
+import { Feature } from "./Feature";
+import { Row } from "./row";
+import { Val } from "./val";
+import { Context } from "./Context";
+import { BddReporter } from "./BddReporter";
+import { Config } from "./Config";
+export declare class TableRows {
     private readonly _values;
     constructor(values: TableValues[]);
     /**
@@ -25,121 +26,7 @@ declare class TableRows {
     get rows(): TableValues[];
     toString(): string;
 }
-declare class MultipleTableValues {
-    private _tables;
-    constructor(tables: Map<string, TableValues[]>);
-    static from(tableTerms: TableTerm[]): MultipleTableValues;
-    row(tableName: string): TableValues[];
-    toString(): string;
-}
-export declare class TableValues {
-    private _map;
-    constructor(map: Map<string, any>);
-    static from(exampleRow: Iterable<Val> | null): TableValues;
-    val(name: string): any;
-    toString(): string;
-}
 export declare function Bdd(feature?: Feature): BDD;
-export declare function row(v1: Val, v2?: Val, v3?: Val, v4?: Val, v5?: Val, v6?: Val, v7?: Val, v8?: Val, v9?: Val, v10?: Val, v11?: Val, v12?: Val, v13?: Val, v14?: Val, v15?: Val, v16?: Val): Row;
-declare class Row {
-    values: Val[];
-    constructor(v1: Val, v2?: Val, v3?: Val, v4?: Val, v5?: Val, v6?: Val, v7?: Val, v8?: Val, v9?: Val, v10?: Val, v11?: Val, v12?: Val, v13?: Val, v14?: Val, v15?: Val, v16?: Val);
-}
-export declare function val(name: string, _: any): Val;
-declare class Val {
-    name: string;
-    value: any;
-    constructor(name: string, value: any);
-    /**
-     * These 3 steps will be applied to format a value in Examples and Tables:
-     *
-     * 1) If a [Config.transformDescribe] was provided, it will be used to format the value.
-     *
-     * 2) Next, if the value implements the [BddDescribe] interface, or if it has a
-     * [describe] method, it will be used to format the value.
-     *
-     * 3) Last, we'll call the value's [toString] method.
-     */
-    toString(config?: Config): string;
-}
-declare class Keywords {
-    feature: string;
-    scenario: string;
-    scenarioOutline: string;
-    given: string;
-    when: string;
-    then: string;
-    and: string;
-    but: string;
-    comment: string;
-    examples: string;
-    table: string;
-    static readonly empty: Keywords;
-    constructor({ feature, scenario, scenarioOutline, given, when, then, and, but, comment, examples, table, }: {
-        feature?: string | undefined;
-        scenario?: string | undefined;
-        scenarioOutline?: string | undefined;
-        given?: string | undefined;
-        when?: string | undefined;
-        then?: string | undefined;
-        and?: string | undefined;
-        but?: string | undefined;
-        comment?: string | undefined;
-        examples?: string | undefined;
-        table?: string | undefined;
-    });
-}
-declare class Config {
-    /** The keywords themselves. */
-    keywords: Keywords;
-    /**
-     * The [prefix] is after the keywords and before the term.
-     * The [suffix] is after the term.
-     */
-    prefix: Keywords;
-    suffix: Keywords;
-    /**
-     * The [keywordPrefix] is before the keyword.
-     * The [keywordSuffix] is after the keyword.
-     */
-    keywordPrefix: Keywords;
-    keywordSuffix: Keywords;
-    indent: number;
-    rightAlignKeywords: boolean;
-    padChar: string;
-    endOfLineChar: string;
-    tableDivider: string;
-    space: string;
-    /**
-     * In tables and examples the output of values to feature files is done with toString().
-     * However, this can be overridden here for your business classes.
-     * Note: If you return `null` the values won't be changed.
-     *
-     * Example:
-     * ```
-     * Object? transformDescribe(Object? obj) {
-     *   if (obj is User) return obj.userName;
-     * }
-     * ```
-     */
-    transformDescribe: ((obj: any) => any) | null;
-    static readonly _default: Config;
-    constructor({ keywords, prefix, suffix, keywordPrefix, keywordSuffix, indent, rightAlignKeywords, padChar, endOfLineChar, tableDivider, space, transformDescribe, }: {
-        keywords?: Keywords | undefined;
-        prefix?: Keywords | undefined;
-        suffix?: Keywords | undefined;
-        keywordPrefix?: Keywords | undefined;
-        keywordSuffix?: Keywords | undefined;
-        indent?: number | undefined;
-        rightAlignKeywords?: boolean | undefined;
-        padChar?: string | undefined;
-        endOfLineChar?: string | undefined;
-        tableDivider?: string | undefined;
-        space?: string | undefined;
-        transformDescribe?: null | undefined;
-    });
-    get spaces(): string;
-}
 declare abstract class _BaseTerm {
     bdd: BDD;
     protected constructor(bdd: BDD);
@@ -150,7 +37,7 @@ declare enum _Variation {
     but = 2,
     note = 3
 }
-declare abstract class Term extends _BaseTerm {
+export declare abstract class Term extends _BaseTerm {
     readonly text: string;
     readonly variation: _Variation;
     protected constructor(bdd: BDD, text: string, variation: _Variation);
@@ -175,7 +62,7 @@ declare abstract class CodeTerm extends _BaseTerm {
     codeRun: CodeRun;
     protected constructor(bdd: BDD, codeRun: CodeRun);
 }
-declare class BDD {
+export declare class BDD {
     feature?: Feature;
     terms: _BaseTerm[];
     _timeout?: number;
@@ -659,7 +546,7 @@ declare class _ThenCode extends CodeTerm {
     run(code: CodeRun): void;
     testRun(code: CodeRun, reporter: BddReporter): BDD;
 }
-declare class TableTerm extends Term {
+export declare class TableTerm extends Term {
     tableName: string;
     rows: Row[];
     constructor(bdd: BDD, tableName: string);
@@ -928,71 +815,6 @@ declare class ThenTable extends TableTerm {
     toString(config?: Config): string;
     run(code: CodeRun): void;
     testRun(code: CodeRun, reporter: BddReporter): BDD;
-}
-export declare class TestResult {
-    private _bdd;
-    constructor(bdd: BDD);
-    get terms(): Iterable<Term>;
-    toMap(config?: Config): string[];
-    toString(config?: Config): string;
-    get wasSkipped(): boolean;
-    /**
-     * Empty means the test was not run yet.
-     * If the Bdd has no examples, the result will be a single value.
-     * Otherwise, it will have one result for each example.
-     *
-     * For each value:
-     * True values means it passed.
-     * False values means it did not pass.
-     */
-    get passed(): boolean[];
-}
-export declare class Feature {
-    readonly title: string;
-    readonly description?: string;
-    private readonly _bdds;
-    constructor(title: string, description?: string);
-    get bdds(): BDD[];
-    get isEmpty(): boolean;
-    get isNotEmpty(): boolean;
-    get testResults(): TestResult[];
-    add(bdd: BDD): void;
-    toString(config?: Config): string;
-}
-declare class _RunInfo {
-    totalTestCount: number;
-    testCount: number;
-    skipCount: number;
-    passedCount: number;
-    failedCount: number;
-}
-export declare function reporter(r1?: BddReporter, r2?: BddReporter, r3?: BddReporter, r4?: BddReporter, r5?: BddReporter): void;
-/**
- * Example:
- *
- * ```
- * void main() async {
- *   BddReporter.set(ConsoleReporter(), FeatureFileReporter());
- *   group('favorites_test', favorites_test.main);
- *   group('search_test', search_test.main);
- *   await BddReporter.reportAll();
- * }
- * ```
- */
-export declare abstract class BddReporter {
-    /** Subclasses must implement this. */
-    abstract report(): Promise<void>;
-    static runInfo: _RunInfo;
-    private static _emptyFeature;
-    static _reporters: BddReporter[];
-    static yellow: string;
-    static reset: string;
-    static set(r1?: BddReporter, r2?: BddReporter, r3?: BddReporter, r4?: BddReporter, r5?: BddReporter): void;
-    private static _reportAll;
-    features: Set<Feature>;
-    _addBdd(bdd: BDD): void;
-    /** Keeps A-Z 0-9, make it lowercase, and change spaces into underline. */
-    normalizeFileName(name: string): string;
 }
 declare type CodeRun = ((ctx: Context) => Promise<void> | void) | undefined;
 export {};

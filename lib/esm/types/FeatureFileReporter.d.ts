@@ -1,4 +1,4 @@
-import { BddReporter } from './Bdd';
+import { BddReporter } from "./BddReporter";
 export declare class FeatureFileReporter extends BddReporter {
     static dir: string;
     constructor();
