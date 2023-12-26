@@ -10,7 +10,7 @@ Most other npm packages are not BDD specific, or they're just too hard to use (l
 
 This package doesn't need "glue files" or any generated code. This is a code example:
 
-<img src="https://raw.githubusercontent.com/marcglasberg/easy-bdd-jest/main/readme_images/code_example.png" width="600" alt="code example"/>
+<img src="https://raw.githubusercontent.com/marcglasberg/easy-bdd-tool-jest/main/readme_images/code_example.png" width="600" alt="code example"/>
 
 When you run your BDDs in the IDE, your tests will be listed in the left panel, numbered as `1`, `2` etc.
 For BDDs that run more than once with different values, each run is going to be numbered with an index, like: `1₁`
@@ -21,7 +21,7 @@ For tests that **fail** you'll get the error stacktrace, and the failing descrip
 
 A screenshot for the IntelliJ IDE:
 
-<img src="https://raw.githubusercontent.com/marcglasberg/easy-bdd-jest/main/readme_images/test_output.png" width="750" alt="console screenshot"/>
+<img src="https://raw.githubusercontent.com/marcglasberg/easy-bdd-tool-jest/main/readme_images/test_output.png" width="750" alt="console screenshot"/>
 
 > _Note there is also a version of this package for <a href="https://pub.dev/packages/bdd_framework">Flutter/Dart</a>._
  
@@ -414,7 +414,7 @@ The app is a simple stock
 portfolio app, where the user can buy and sell stocks:
 
 <div style="text-align: center;">
-   <img src="https://raw.githubusercontent.com/marcglasberg/easy-bdd-jest/main/readme_images/stocks_app_screenshot.png" height="640" alt="screenshot"/>
+   <img src="https://raw.githubusercontent.com/marcglasberg/easy-bdd-tool-jest/main/readme_images/stocks_app_screenshot.png" height="640" alt="screenshot"/>
 </div>
 
 
