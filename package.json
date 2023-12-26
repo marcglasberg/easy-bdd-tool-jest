@@ -1,7 +1,7 @@
 {
-  "name": "@marcglasberg/bdd_framework_for_jest",
-  "version": "1.0.2",
-  "description": "BDD framework for Jest. Lets you create BDD tests in code, and gives you easy to read error messages when assertions fail. Exports to Gherkin/Cucumber feature files.",
+  "name": "easy-bdd-tool-jest",
+  "version": "1.0.0",
+  "description": "Easy BDD Tool, for Jest. Create your BDD tests directly in code, and get readable error messages. Exports to Gherkin/Cucumber feature files.",
   "exports": {
     ".": {
       "import": {
@@ -38,7 +38,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/marcglasberg/bdd_framework_for_jest.git"
+    "url": "https://github.com/marcglasberg/easy-bdd-jest.git"
   },
   "keywords": [
     "bdd",
@@ -51,9 +51,9 @@
   "author": "Marcelo Glasberg",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/marcglasberg/bdd_framework_for_jest/issues"
+    "url": "https://github.com/marcglasberg/easy-bdd-jest/issues"
   },
-  "homepage": "https://github.com/marcglasberg/bdd_framework_for_jest#readme",
+  "homepage": "https://github.com/marcglasberg/easy-bdd-jest#readme",
   "dependencies": {
     "jest": "^29.2.1"
   },

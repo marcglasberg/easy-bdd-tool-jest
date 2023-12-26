@@ -1788,7 +1788,7 @@ class _Run {
     }
 }
 
-/** This is for testing the BDD framework only. */
+/** This is for testing the Easy BDD Tool only. */
 class _TestRun {
     private readonly code: CodeRun;
     private readonly reporter?: BddReporter;

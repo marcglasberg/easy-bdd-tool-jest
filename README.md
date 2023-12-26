@@ -1,13 +1,16 @@
-# BDD Framework For Jest
+# Easy BDD Tool, For Jest
 
+Click <a href="https://medium.com/@marcglasberg/a-new-bdd-tool-for-typescript-javascript-and-dart-673933b3b38e">here to read the article</a> on Medium.
+
+<br>
 This package aims to be the simplest way to write <a href='https://en.wikipedia.org/wiki/Behavior-driven_development'>
-Behavior Driven Development (BDD)</a> tests **in Jest** for your TypeScript and JavaScript projects.
+Behavior Driven Development</a> (BDD) tests **in Jest** for your TypeScript and JavaScript projects.
 
-Most other npm packages are not BDD specific, or they're just too hard to use (like Cucumber.js, in my opinion).
+Most other npm packages are not BDD specific, or they're just too hard to use (like <a href="https://cucumber.io/docs/guides/overview/">Cucumber</a>, in my opinion).
 
 This package doesn't need "glue files" or any generated code. This is a code example:
 
-<img src="https://raw.githubusercontent.com/marcglasberg/bdd_framework_for_jest/main/readme_images/code_example.png" width="600" alt="code example"/>
+<img src="https://raw.githubusercontent.com/marcglasberg/easy-bdd-jest/main/readme_images/code_example.png" width="600" alt="code example"/>
 
 When you run your BDDs in the IDE, your tests will be listed in the left panel, numbered as `1`, `2` etc.
 For BDDs that run more than once with different values, each run is going to be numbered with an index, like: `1₁`
@@ -18,7 +21,7 @@ For tests that **fail** you'll get the error stacktrace, and the failing descrip
 
 A screenshot for the IntelliJ IDE:
 
-<img src="https://raw.githubusercontent.com/marcglasberg/bdd_framework_for_jest/main/readme_images/test_output.png" width="750" alt="console screenshot"/>
+<img src="https://raw.githubusercontent.com/marcglasberg/easy-bdd-jest/main/readme_images/test_output.png" width="750" alt="console screenshot"/>
 
 > _Note there is also a version of this package for <a href="https://pub.dev/packages/bdd_framework">Flutter/Dart</a>._
  
@@ -32,20 +35,20 @@ well-tested, and easily adjustable code. It enhances the collaboration between d
 engineers, testers, and sometimes even clients.
 
 Despite its numerous benefits, not all companies adopt BDD. One reason behind this is that
-traditional BDD frameworks tend to complicate the process, discouraging developers from writing
+traditional BDD tools tend to complicate the process, discouraging developers from writing
 BDDs. And let's be honest, if it's challenging to write BDDs, they simply won't get written.
 
-In the past, I championed writing BDDs manually, bypassing the need for a framework. This approach
+In the past, I championed writing BDDs manually, bypassing the need for a BDD tool. This approach
 has its limitations though, particularly for larger teams. It becomes difficult to establish a
 standard for writing BDDs, and potentially leaves other staff members in the dark. A suitable
-framework can solve this, as long as it eliminates unnecessary complexity and puts the developers'
+tool can solve this, as long as it eliminates unnecessary complexity and puts the developers'
 needs at the forefront.
 
 That's where this package comes in. It's designed to make writing BDDs an absolute breeze,
 encouraging developers to adopt it. And in spite of its "developer-centric" approach, I believe
 that business stakeholders will also appreciate and prefer the streamlined process it introduces.
 
-Here's what makes this framework stand out:
+Here's what makes this Easy BDD Tool stand out:
 
 - You can create BDD tests entirely in code, no need for `.feature` files.
 - It is _developer-centric_, catering primarily to the needs of developers, rather than business
@@ -70,9 +73,9 @@ Get ready to master creating BDDs in practice!
 
 ---
 
-## 1. Understanding how other BDD frameworks operate
+## 1. Understanding how other BDD tools operate
 
-Before we dive deeper, let's take a moment to understand how typical BDD frameworks function, and
+Before we dive deeper, let's take a moment to understand how typical BDD tools function, and
 why they might not be my cup of tea.
 
 Typically, the process follows these steps:
@@ -178,7 +181,7 @@ covered.
 
 ---
 
-## 2. How this BDD Framework package is different
+## 2. How this Easy BDD Tool package is different
 
 The present package fundamentally rethinks the way you interact with BDDs. It's designed
 with simplicity and efficiency in mind. Here's how it works:
@@ -210,7 +213,7 @@ This new process greatly reduces the tedious back-and-forth between business sta
 developers for fixing feature files. Say goodbye to glue code or the hassle of converting strings
 into appropriately typed objects.
 
-The BDD Framework also takes the pressure off business stakeholders, as they don't have to craft
+The Easy BDD Tool also takes the pressure off business stakeholders, as they don't have to craft
 perfect BDDs right from the get-go. They can rely on developers to enrich the details when they're
 translating the BDDs into code – that's when the finer points truly come to light. All the while,
 business stakeholders stay in the loop by reviewing the feature files stored in the repo.
@@ -411,7 +414,7 @@ The app is a simple stock
 portfolio app, where the user can buy and sell stocks:
 
 <div style="text-align: center;">
-   <img src="https://raw.githubusercontent.com/marcglasberg/bdd_framework_for_jest/main/readme_images/stocks_app_screenshot.png" height="640" alt="screenshot"/>
+   <img src="https://raw.githubusercontent.com/marcglasberg/easy-bdd-jest/main/readme_images/stocks_app_screenshot.png" height="640" alt="screenshot"/>
 </div>
 
 
@@ -449,8 +452,9 @@ directory of this GitHub repository:
 
 Note, I have prefixed the file names with `bdd.`, but that's not necessary.
 
-These BDD test files encompass a total of 3 BDDs, each illustrating different aspects of the current BDD Framework. It's
-worth noting that one of these files includes an Examples section with two rows, meaning it will execute twice, each
+These BDD test files encompass a total of 3 BDDs, each illustrating different aspects of the current Easy BDD Tool.
+It's worth noting that one of these files includes an Examples section with two rows, meaning it will execute twice,
+each
 time with different data.
 
 However, these examples are not sufficient to ensure the entire app functions as intended. After reviewing the example
@@ -536,7 +540,7 @@ As you can see above, I separated the code for the Given/When/Then sections with
 `// Given:` etc. That's optional, but recommended. The code is very readable and does exactly
 what the BDD says it should do.
 
-Note again that the test code callback itself has nothing to do with the BDD Framework.
+Note again that the test code callback itself has nothing to do with the Easy BDD Tool.
 It's just plain TypeScript/JavaScript code that depends on your business logic. The complete code is this:
 
 ```typescript
@@ -840,7 +844,7 @@ const averagePrice: number = val('Average Price');
 
 As you can see, the values are read by _name_, and the type is inferred from the variable type.
 
-Notice you don't need to refer to the number of the example you are reading, because the BDD Framework will
+Notice you don't need to refer to the number of the example you are reading, because the Easy BDD Tool will
 automatically run the BDD as many times as needed, one for each set of example values.
 In this example it will be run twice.
 
@@ -912,22 +916,22 @@ You can even mix BDD tests with regular Jest tests in the same file, even though
 
 ```typescript
 beforeEach(async () => {
-  calculator.clear();
+    calculator.clear();
 });
 
 const feature = new Feature('Calculator');
 
 Bdd(feature)
-        .scenario('Adding numbers')
-        .given('The numbers 1 and 2.')
-        .when('The numbers are added.')
-        .then('The result is 3.')
-        .run((ctx) => {
-          expect(calculator.press(1).press('+').press(2).press('=')).toBe(3);
-        });
+    .scenario('Adding numbers')
+    .given('The numbers 1 and 2.')
+    .when('The numbers are added.')
+    .then('The result is 3.')
+    .run((ctx) => {
+        expect(calculator.press(1).press('+').press(2).press('=')).toBe(3);
+    });
 
 it('multiplies numbers', (): void => {
-  expect(calculator.press(2).press('*').press(3).press('=')).toBe(6);
+    expect(calculator.press(2).press('*').press(3).press('=')).toBe(6);
 });
 ```
 
@@ -937,7 +941,7 @@ To run the BDD tests, you can use the command line, similar to how you would run
 Or you can use your IDE's built-in test runner. In IntelliJ, for example, you can create a "Run Configuration"
 to execute tests.
 
-Additionally, in most IDEs, you can execute standard Jest test files by clicking the play button `⏵` 
+Additionally, in most IDEs, you can execute standard Jest test files by clicking the play button `⏵`
 shown in the file editor.
 In the future I'll publish plugins for IntelliJ and Visual Code, enabling this play button to appear beside each BDD
 test name and on the file itself. Currently, the play button is visible only for files that include standard Jest tests,
