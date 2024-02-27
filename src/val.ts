@@ -36,9 +36,9 @@ export class Val {
 
         // 2)
         if (_value === null) return 'NULL';
-        //
+            //
         // 3)
-        if ((<Describe>_value).describe) {
+        else if ((<Describe>_value).describe) {
             let description = (<Describe>_value).describe();
             return (description === null) ? 'NULL' : description.toString();
         }
