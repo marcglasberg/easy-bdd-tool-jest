@@ -22,7 +22,7 @@
   "scripts": {
     "clean": "del-cli ./lib",
     "build": "npm run clean && npm run build:esm && npm run build:cjs",
-    "build:esm": "tsc -p ./tsconfig.esm.json && node ./node_modules/move-file/index.js lib/esm/index.js lib/esm/index.mjs",
+    "build:esm": "tsc -p ./tsconfig.esm.json && node -e \"require('fs').rename('lib/esm/index.js', 'lib/esm/index.mjs', (err) => { if (err) throw err; })\"",
     "build:cjs": "tsc -p ./tsconfig.cjs.json",
     "test": "jest",
     "semantic-release": "semantic-release",
