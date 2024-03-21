@@ -16,6 +16,6 @@ export class ConsoleReporter extends BddReporter {
       }
     });
 
-    console.log(output);
+    process.stdout.write(output);
   }
 }

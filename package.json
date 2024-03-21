@@ -1,6 +1,6 @@
 {
   "name": "easy-bdd-tool-jest",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Easy BDD Tool, for Jest. Create your BDD tests directly in code, and get readable error messages. Exports to Gherkin/Cucumber feature files.",
   "exports": {
     ".": {

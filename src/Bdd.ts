@@ -1,1601 +1,1601 @@
 /* eslint-disable @typescript-eslint/no-shadow */
 // noinspection JSUnusedGlobalSymbols,UnnecessaryLocalVariableJS,DuplicatedCode
 
-import {test} from '@jest/globals';
-import {TableValues} from "./TableValues";
-import {Feature} from "./Feature";
-import {Row} from "./row";
-import {Val} from "./val";
-import {Context} from "./Context";
-import {BddReporter} from "./BddReporter";
-import {Config} from "./Config";
-import {Keywords} from "./Keywords";
-import {BddError} from "./BddError";
-import {MultipleTableValues} from "./MultipleTableValues";
+import { test } from '@jest/globals';
+import { TableValues } from "./TableValues";
+import { Feature } from "./Feature";
+import { Row } from "./row";
+import { Val } from "./val";
+import { Context } from "./Context";
+import { BddReporter } from "./BddReporter";
+import { Config } from "./Config";
+import { Keywords } from "./Keywords";
+import { BddError } from "./BddError";
+import { MultipleTableValues } from "./MultipleTableValues";
 
 export class TableRows {
-    private readonly _values: TableValues[];
+  private readonly _values: TableValues[];
 
-    constructor(values: TableValues[]) {
-        this._values = values;
+  constructor(values: TableValues[]) {
+    this._values = values;
+  }
+
+  /**
+   * Example:
+   * ctx.table('notifications').row(0).val('read') as bool;
+   */
+  row(index: number): TableValues {
+    if (index < 0 || index >= this._values.length)
+      throw new BddError(
+        `You can't get table row(${index}), since range is 0..${this._values.length}.`,
+      );
+    else
+      return this._values[index];
+  }
+
+  /**
+   * Return the first row it finds with the given name/value pair. Example:
+   * ctx.table('notifications').rowWhere(name: 'property', value: 'lastPrice').val('market') as Money;
+   * If no name/value pair is found, an error is thrown.
+   */
+  rowWhere(name: string, value?: object): TableValues {
+    const foundRow = this._values.find(
+      (btv) => btv.val(name) === value,
+    );
+
+    if (!foundRow) {
+      throw new BddError(
+        `There is no table with name:"${name}" and value: "${value}".`,
+      );
     }
 
-    /**
-     * Example:
-     * ctx.table('notifications').row(0).val('read') as bool;
-     */
-    row(index: number): TableValues {
-        if (index < 0 || index >= this._values.length)
-            throw new BddError(
-                `You can't get table row(${index}), since range is 0..${this._values.length}.`,
-            );
-        else
-            return this._values[index];
-    }
+    return foundRow;
+  }
 
-    /**
-     * Return the first row it finds with the given name/value pair. Example:
-     * ctx.table('notifications').rowWhere(name: 'property', value: 'lastPrice').val('market') as Money;
-     * If no name/value pair is found, an error is thrown.
-     */
-    rowWhere(name: string, value?: object): TableValues {
-        const foundRow = this._values.find(
-            (btv) => btv.val(name) === value,
-        );
+  /**
+   * Example:
+   * ctx.table('notifications').rows;
+   */
+  get rows(): TableValues[] {
+    return [...this._values];
+  }
 
-        if (!foundRow) {
-            throw new BddError(
-                `There is no table with name:"${name}" and value: "${value}".`,
-            );
-        }
-
-        return foundRow;
-    }
-
-    /**
-     * Example:
-     * ctx.table('notifications').rows;
-     */
-    get rows(): TableValues[] {
-        return [...this._values];
-    }
-
-    toString(): string {
-        return `BddTableRows{${this._values}}`;
-    }
+  toString(): string {
+    return `BddTableRows{${this._values}}`;
+  }
 }
 
 export function Bdd(feature?: Feature): BDD {
-    return new BDD(feature);
+  return new BDD(feature);
 }
 
 abstract class _BaseTerm {
-    bdd: BDD;
+  bdd: BDD;
 
-    protected constructor(bdd: BDD) {
-        this.bdd = bdd;
-        bdd.terms.push(this);
-    }
+  protected constructor(bdd: BDD) {
+    this.bdd = bdd;
+    bdd.terms.push(this);
+  }
 }
 
 enum _Variation {
-    term,
-    and,
-    but,
-    note,
+  term,
+  and,
+  but,
+  note,
 }
 
 export abstract class Term extends _BaseTerm {
-    readonly text: string;
-    readonly variation: _Variation;
+  readonly text: string;
+  readonly variation: _Variation;
 
-    protected constructor(bdd: BDD, text: string, variation: _Variation) {
-        super(bdd);
-        this.text = text;
-        this.variation = variation;
+  protected constructor(bdd: BDD, text: string, variation: _Variation) {
+    super(bdd);
+    this.text = text;
+    this.variation = variation;
+  }
+
+  abstract spaces(config: Config): string;
+
+  abstract keyword(config: Config): string;
+
+  abstract keywordPrefix(config: Config): string;
+
+  abstract keywordSuffix(config: Config): string;
+
+  abstract prefix(config: Config): string;
+
+  abstract suffix(config: Config): string;
+
+  protected _keywordVariation(config: Config): string | null {
+    return (this.variation === _Variation.and)
+      ? config.keywords.and
+      : (this.variation === _Variation.but)
+        ? config.keywords.but
+        : (this.variation === _Variation.note)
+          ? config.keywords.comment
+          : null;
+  }
+
+  protected _keywordPrefixVariation(config: Config): string | null {
+    return (this.variation === _Variation.and)
+      ? config.keywordPrefix.and
+      : (this.variation === _Variation.but)
+        ? config.keywordPrefix.but
+        : (this.variation === _Variation.note)
+          ? config.keywordPrefix.comment
+          : null;
+  }
+
+  protected _keywordSuffixVariation(config: Config): string | null {
+    return (this.variation === _Variation.and)
+      ? config.keywordSuffix.and
+      : (this.variation === _Variation.but)
+        ? config.keywordSuffix.but
+        : (this.variation === _Variation.note)
+          ? config.keywordSuffix.comment
+          : null;
+  }
+
+  protected _prefixVariation(config: Config): string | null {
+    return (this.variation === _Variation.and)
+      ? config.prefix.and
+      : (this.variation === _Variation.but)
+        ? config.prefix.but
+        : (this.variation === _Variation.note)
+          ? config.prefix.comment
+          : null;
+  }
+
+  protected _suffixVariation(config: Config): string | null {
+    return (this.variation === _Variation.and)
+      ? config.suffix.and
+      : (this.variation === _Variation.but)
+        ? config.suffix.but
+        : (this.variation === _Variation.note)
+          ? config.suffix.comment
+          : null;
+  }
+
+  protected _padSize(config: Config): number {
+    return Math.max(
+      Math.max(
+        Math.max(
+          Math.max(config.keywords.given.length, config.keywords.then.length),
+          config.keywords.when.length,
+        ),
+        config.keywords.and.length,
+      ),
+      config.keywords.but.length,
+    );
+  }
+
+  protected _keyword(config: Config = Config._default): string {
+    let term = this.keyword(config);
+    let result = this._keyword_unpadded(term, config);
+    if (config.rightAlignKeywords) {
+      let padSize = this._padSize(config);
+      result = result.padStart(padSize, config.padChar);
     }
+    return result;
+  }
 
-    abstract spaces(config: Config): string;
+  protected _keyword_unpadded(term: string, config: Config): string {
+    if (this.variation === _Variation.term)
+      return term;
+    else if (this.variation === _Variation.and)
+      return config.keywords.and;
+    else if (this.variation === _Variation.but)
+      return config.keywords.but;
+    else if (this.variation === _Variation.note)
+      return config.keywords.comment;
+    else
+      throw new BddError(this.variation);
+  }
 
-    abstract keyword(config: Config): string;
-
-    abstract keywordPrefix(config: Config): string;
-
-    abstract keywordSuffix(config: Config): string;
-
-    abstract prefix(config: Config): string;
-
-    abstract suffix(config: Config): string;
-
-    protected _keywordVariation(config: Config): string | null {
-        return (this.variation === _Variation.and)
-            ? config.keywords.and
-            : (this.variation === _Variation.but)
-                ? config.keywords.but
-                : (this.variation === _Variation.note)
-                    ? config.keywords.comment
-                    : null;
+  protected _capitalize(text: string): string {
+    if (this.variation === _Variation.note) {
+      const characters = Array.from(text);
+      return characters[0].toUpperCase() + characters.slice(1).join('');
+    } else {
+      return text;
     }
+  }
 
-    protected _keywordPrefixVariation(config: Config): string | null {
-        return (this.variation === _Variation.and)
-            ? config.keywordPrefix.and
-            : (this.variation === _Variation.but)
-                ? config.keywordPrefix.but
-                : (this.variation === _Variation.note)
-                    ? config.keywordPrefix.comment
-                    : null;
-    }
-
-    protected _keywordSuffixVariation(config: Config): string | null {
-        return (this.variation === _Variation.and)
-            ? config.keywordSuffix.and
-            : (this.variation === _Variation.but)
-                ? config.keywordSuffix.but
-                : (this.variation === _Variation.note)
-                    ? config.keywordSuffix.comment
-                    : null;
-    }
-
-    protected _prefixVariation(config: Config): string | null {
-        return (this.variation === _Variation.and)
-            ? config.prefix.and
-            : (this.variation === _Variation.but)
-                ? config.prefix.but
-                : (this.variation === _Variation.note)
-                    ? config.prefix.comment
-                    : null;
-    }
-
-    protected _suffixVariation(config: Config): string | null {
-        return (this.variation === _Variation.and)
-            ? config.suffix.and
-            : (this.variation === _Variation.but)
-                ? config.suffix.but
-                : (this.variation === _Variation.note)
-                    ? config.suffix.comment
-                    : null;
-    }
-
-    protected _padSize(config: Config): number {
-        return Math.max(
-            Math.max(
-                Math.max(
-                    Math.max(config.keywords.given.length, config.keywords.then.length),
-                    config.keywords.when.length,
-                ),
-                config.keywords.and.length,
-            ),
-            config.keywords.but.length,
-        );
-    }
-
-    protected _keyword(config: Config = Config._default): string {
-        let term = this.keyword(config);
-        let result = this._keyword_unpadded(term, config);
-        if (config.rightAlignKeywords) {
-            let padSize = this._padSize(config);
-            result = result.padStart(padSize, config.padChar);
-        }
-        return result;
-    }
-
-    protected _keyword_unpadded(term: string, config: Config): string {
-        if (this.variation === _Variation.term)
-            return term;
-        else if (this.variation === _Variation.and)
-            return config.keywords.and;
-        else if (this.variation === _Variation.but)
-            return config.keywords.but;
-        else if (this.variation === _Variation.note)
-            return config.keywords.comment;
-        else
-            throw new BddError(this.variation);
-    }
-
-    protected _capitalize(text: string): string {
-        if (this.variation === _Variation.note) {
-            const characters = Array.from(text);
-            return characters[0].toUpperCase() + characters.slice(1).join('');
-        } else {
-            return text;
-        }
-    }
-
-    toString(config: Config = Config._default): string {
-        return this.keywordPrefix(config) +
-            this.spaces(config) +
-            this._keyword(config) +
-            this.keywordSuffix(config) +
-            ' ' +
-            this.prefix(config) +
-            this._capitalize(this.text) +
-            this.suffix(config);
-    }
+  toString(config: Config = Config._default): string {
+    return this.keywordPrefix(config) +
+      this.spaces(config) +
+      this._keyword(config) +
+      this.keywordSuffix(config) +
+      ' ' +
+      this.prefix(config) +
+      this._capitalize(this.text) +
+      this.suffix(config);
+  }
 }
 
 abstract class CodeTerm extends _BaseTerm {
-    codeRun: CodeRun;
+  codeRun: CodeRun;
 
-    protected constructor(bdd: BDD, codeRun: CodeRun) {
-        super(bdd);
-        this.codeRun = codeRun;
-    }
+  protected constructor(bdd: BDD, codeRun: CodeRun) {
+    super(bdd);
+    this.codeRun = codeRun;
+  }
 }
 
 export class BDD {
-    feature?: Feature;
-    terms: _BaseTerm[];
-    _timeout?: number;
-    _skip: boolean;
-    codeRuns: CodeRun[];
+  feature?: Feature;
+  terms: _BaseTerm[];
+  _timeout?: number;
+  _skip: boolean;
+  codeRuns: CodeRun[];
 
-    /**
-     * Nulls means the test was not run yet.
-     * True means it passed.
-     * False means it did not pass.
-     */
-    passed: boolean[];
+  /**
+   * Nulls means the test was not run yet.
+   * True means it passed.
+   * False means it did not pass.
+   */
+  passed: boolean[];
 
-    constructor(feature?: Feature) {
-        this.feature = feature;
-        this.terms = [];
-        this._timeout = undefined;
-        this._skip = false;
-        this.codeRuns = [];
-        this.passed = [];
-    }
+  constructor(feature?: Feature) {
+    this.feature = feature;
+    this.terms = [];
+    this._timeout = undefined;
+    this._skip = false;
+    this.codeRuns = [];
+    this.passed = [];
+  }
 
-    addCode(code: CodeRun): void {
-        this.codeRuns.push(code);
-    }
+  addCode(code: CodeRun): void {
+    this.codeRuns.push(code);
+  }
 
-    /** Example: `List<Given> = bdd.allTerms<Given>().toList();` */
-    allTerms<T extends Term>(type: { new(...args: any[]): T }): Iterable<T> {
-        return this.terms.filter(term => term instanceof type) as Iterable<T>;
-    }
+  /** Example: `List<Given> = bdd.allTerms<Given>().toList();` */
+  allTerms<T extends Term>(type: { new(...args: any[]): T }): Iterable<T> {
+    return this.terms.filter(term => term instanceof type) as Iterable<T>;
+  }
 
-    /** The BDD description is its Scenario (or blank if there is no Scenario). */
-    description(): string {
-        const scenarioIterator = this.allTerms<Scenario>(Scenario)[Symbol.iterator]();
-        const scenario = scenarioIterator.next().value;
-        return scenario ? scenario.text : '';
-    }
+  /** The BDD description is its Scenario (or blank if there is no Scenario). */
+  description(): string {
+    const scenarioIterator = this.allTerms<Scenario>(Scenario)[Symbol.iterator]();
+    const scenario = scenarioIterator.next().value;
+    return scenario ? scenario.text : '';
+  }
 
-    /** A Bdd may have 0 or 1 examples. */
-    example(): Example | undefined {
-        const exampleIterator = this.allTerms<Example>(Example)[Symbol.iterator]();
-        return exampleIterator.next().value;
-    }
+  /** A Bdd may have 0 or 1 examples. */
+  example(): Example | undefined {
+    const exampleIterator = this.allTerms<Example>(Example)[Symbol.iterator]();
+    return exampleIterator.next().value;
+  }
 
-    /** A Bdd may have 0, 1, or more tables (which are not examples). */
-    tables(): TableTerm[] {
-        return Array.from(this.allTerms<TableTerm>(TableTerm));
-    }
+  /** A Bdd may have 0, 1, or more tables (which are not examples). */
+  tables(): TableTerm[] {
+    return Array.from(this.allTerms<TableTerm>(TableTerm));
+  }
 
-    /** The example, if it exists, may have any number of rows. */
-    exampleRow(count: number | null): Set<Val> | null {
-        return (count === null) ? null : (this.example()?.rows[count] ?? null);
-    }
+  /** The example, if it exists, may have any number of rows. */
+  exampleRow(count: number | null): Set<Val> | null {
+    return (count === null) ? null : (this.example()?.rows[count] ?? null);
+  }
 
-    numberOfExamples(): number {
-        const example = this.example();
-        return example ? example.rows.length : 0;
-    }
+  numberOfExamples(): number {
+    const example = this.example();
+    return example ? example.rows.length : 0;
+  }
 
-    get skip(): BDD {
-        this._skip = true;
-        return this;
-    }
+  get skip(): BDD {
+    this._skip = true;
+    return this;
+  }
 
-    /** Timeout in milliseconds */
-    timeout(duration?: number): BDD {
-        this._timeout = duration;
-        return this;
-    }
+  /** Timeout in milliseconds */
+  timeout(duration?: number): BDD {
+    this._timeout = duration;
+    return this;
+  }
 
-    /** Timeout in seconds */
-    timeoutSec(seconds: number): BDD {
-        return this.timeout(seconds * 1000); // Convert seconds to milliseconds
-    }
+  /** Timeout in seconds */
+  timeoutSec(seconds: number): BDD {
+    return this.timeout(seconds * 1000); // Convert seconds to milliseconds
+  }
 
-    /**
-     * The high-level description of a test case in Gherkin. It describes a
-     * particular functionality or feature of the system being tested.
-     */
-    scenario(text: string): Scenario {
-        return new Scenario(this, text);
-    }
+  /**
+   * The high-level description of a test case in Gherkin. It describes a
+   * particular functionality or feature of the system being tested.
+   */
+  scenario(text: string): Scenario {
+    return new Scenario(this, text);
+  }
 
-    /**
-     * This keyword starts a step that sets up the initial context of the
-     * scenario. It's used to describe the state of the world before you begin
-     * the behavior you're specifying in this scenario. For example,
-     * "Given I am logged into the website" sets the scene for the actions that follow.
-     *
-     * Note the use of `_` as some of the variables names, because we don't want
-     * IDE editors to show them as "Parameter Name Hints".
-     */
-    given(_: string): Given {
-        return new Given(this, _);
-    }
+  /**
+   * This keyword starts a step that sets up the initial context of the
+   * scenario. It's used to describe the state of the world before you begin
+   * the behavior you're specifying in this scenario. For example,
+   * "Given I am logged into the website" sets the scene for the actions that follow.
+   *
+   * Note the use of `_` as some of the variables names, because we don't want
+   * IDE editors to show them as "Parameter Name Hints".
+   */
+  given(_: string): Given {
+    return new Given(this, _);
+  }
 
-    get textTerms(): Iterable<Term> {
-        return this.terms.filter(term => term instanceof Term) as Iterable<Term>;
-    }
+  get textTerms(): Iterable<Term> {
+    return this.terms.filter(term => term instanceof Term) as Iterable<Term>;
+  }
 
-    get codeTerms(): Iterable<CodeTerm> {
-        return this.terms.filter(term => term instanceof CodeTerm) as Iterable<CodeTerm>;
-    }
+  get codeTerms(): Iterable<CodeTerm> {
+    return this.terms.filter(term => term instanceof CodeTerm) as Iterable<CodeTerm>;
+  }
 
-    toMap(config: Config): string[] {
-        return Array.from(this.textTerms).map(term => term.toString(config));
-    }
+  toMap(config: Config): string[] {
+    return Array.from(this.textTerms).map(term => term.toString(config));
+  }
 
-    toString(config: Config = Config._default, withFeature: boolean = false): string {
-        const featureString = withFeature ? this.feature?.toString(config) ?? '' : '';
-        const termsString = this.toMap(config).join(config.endOfLineChar);
-        return featureString + termsString + config.endOfLineChar;
-    }
+  toString(config: Config = Config._default, withFeature: boolean = false): string {
+    const featureString = withFeature ? this.feature?.toString(config) ?? '' : '';
+    const termsString = this.toMap(config).join(config.endOfLineChar);
+    return featureString + termsString + config.endOfLineChar;
+  }
 }
 
 class Scenario extends Term {
-    constructor(bdd: BDD, text: string) {
-        super(bdd, text, _Variation.term);
-    }
+  constructor(bdd: BDD, text: string) {
+    super(bdd, text, _Variation.term);
+  }
 
-    get containsExample(): boolean {
-        return this.bdd.terms.some((term) => term instanceof Example);
-    }
+  get containsExample(): boolean {
+    return this.bdd.terms.some((term) => term instanceof Example);
+  }
 
-    spaces(config: Config): string {
-        return config.spaces;
-    }
+  spaces(config: Config): string {
+    return config.spaces;
+  }
 
-    keyword(config: Config): string {
-        return this.containsExample
-            ? config.keywords.scenarioOutline
-            : config.keywords.scenario;
-    }
+  keyword(config: Config): string {
+    return this.containsExample
+      ? config.keywords.scenarioOutline
+      : config.keywords.scenario;
+  }
 
-    keywordPrefix(config: Config): string {
-        return this.containsExample
-            ? config.keywordPrefix.scenarioOutline
-            : config.keywordPrefix.scenario;
-    }
+  keywordPrefix(config: Config): string {
+    return this.containsExample
+      ? config.keywordPrefix.scenarioOutline
+      : config.keywordPrefix.scenario;
+  }
 
-    keywordSuffix(config: Config): string {
-        return this.containsExample
-            ? config.keywordSuffix.scenarioOutline
-            : config.keywordSuffix.scenario;
-    }
+  keywordSuffix(config: Config): string {
+    return this.containsExample
+      ? config.keywordSuffix.scenarioOutline
+      : config.keywordSuffix.scenario;
+  }
 
-    prefix(config: Config): string {
-        return this.containsExample
-            ? config.prefix.scenarioOutline
-            : config.prefix.scenario;
-    }
+  prefix(config: Config): string {
+    return this.containsExample
+      ? config.prefix.scenarioOutline
+      : config.prefix.scenario;
+  }
 
-    suffix(config: Config): string {
-        return this.containsExample
-            ? config.suffix.scenarioOutline
-            : config.suffix.scenario;
-    }
+  suffix(config: Config): string {
+    return this.containsExample
+      ? config.suffix.scenarioOutline
+      : config.suffix.scenario;
+  }
 
-    /**
-     * This keyword starts a step that sets up the initial context of the
-     * scenario. It's used to describe the state of the world before you begin
-     * the behavior you're specifying in this scenario. For example,
-     * "Given I am logged into the website" sets the scene for the actions that follow.
-     *
-     * Note the use of `_` as some of the variables names, because we don't want
-     * IDE editors to show them as "Parameter Name Hints".
-     */
-    given(_: string): Given {
-        return new Given(this.bdd, _);
-    }
+  /**
+   * This keyword starts a step that sets up the initial context of the
+   * scenario. It's used to describe the state of the world before you begin
+   * the behavior you're specifying in this scenario. For example,
+   * "Given I am logged into the website" sets the scene for the actions that follow.
+   *
+   * Note the use of `_` as some of the variables names, because we don't want
+   * IDE editors to show them as "Parameter Name Hints".
+   */
+  given(_: string): Given {
+    return new Given(this.bdd, _);
+  }
 
-    /**
-     * Often used informally in comments within a Gherkin document to provide
-     * additional information, clarifications, or explanations about the scenario
-     * or steps. Comments in Gherkin are usually marked with a hashtag (#) and
-     * are ignored when the tests are executed. A "Note" can be useful for
-     * giving context or explaining the rationale behind a certain test scenario,
-     * making it easier for others to understand the purpose and scope of the test.
-     */
-    note(_: string): Given {
-        return new Given(this.bdd, _, _Variation.note);
-    }
+  /**
+   * Often used informally in comments within a Gherkin document to provide
+   * additional information, clarifications, or explanations about the scenario
+   * or steps. Comments in Gherkin are usually marked with a hashtag (#) and
+   * are ignored when the tests are executed. A "Note" can be useful for
+   * giving context or explaining the rationale behind a certain test scenario,
+   * making it easier for others to understand the purpose and scope of the test.
+   */
+  note(_: string): Given {
+    return new Given(this.bdd, _, _Variation.note);
+  }
 
-    toString(config: Config = Config._default): string {
-        return super.toString(config);
-    }
+  toString(config: Config = Config._default): string {
+    return super.toString(config);
+  }
 }
 
 class Given extends Term {
-    constructor(bdd: BDD, text: string, variation: _Variation = _Variation.term) {
-        super(bdd, text, variation);
-    }
+  constructor(bdd: BDD, text: string, variation: _Variation = _Variation.term) {
+    super(bdd, text, variation);
+  }
 
-    static _internal(bdd: BDD, text: string, variation: _Variation): Given {
-        return new Given(bdd, text, variation);
-    }
+  static _internal(bdd: BDD, text: string, variation: _Variation): Given {
+    return new Given(bdd, text, variation);
+  }
 
-    spaces(config: Config): string {
-        return config.spaces + config.spaces;
-    }
+  spaces(config: Config): string {
+    return config.spaces + config.spaces;
+  }
 
-    keyword(config: Config): string {
-        return this._keywordVariation(config) ?? config.keywords.given;
-    }
+  keyword(config: Config): string {
+    return this._keywordVariation(config) ?? config.keywords.given;
+  }
 
-    keywordPrefix(config: Config): string {
-        return this._keywordPrefixVariation(config) ?? config.keywordPrefix.given;
-    }
+  keywordPrefix(config: Config): string {
+    return this._keywordPrefixVariation(config) ?? config.keywordPrefix.given;
+  }
 
-    keywordSuffix(config: Config): string {
-        return this._keywordSuffixVariation(config) ?? config.keywordSuffix.given;
-    }
+  keywordSuffix(config: Config): string {
+    return this._keywordSuffixVariation(config) ?? config.keywordSuffix.given;
+  }
 
-    prefix(config: Config): string {
-        return this._prefixVariation(config) ?? config.prefix.given;
-    }
+  prefix(config: Config): string {
+    return this._prefixVariation(config) ?? config.prefix.given;
+  }
 
-    suffix(config: Config): string {
-        return this._suffixVariation(config) ?? config.suffix.given;
-    }
+  suffix(config: Config): string {
+    return this._suffixVariation(config) ?? config.suffix.given;
+  }
 
-    /**
-     * A table must have a name and rows. The name is necessary if you want to
-     * read the values from it later (if not, just pass an empty string).
-     * Example: `ctx.table('notifications').row(0).val('read') as bool`.
-     */
-    table(tableName: string, row1: Row, row2?: Row, row3?: Row, row4?: Row, row5?: Row, row6?: Row, row7?: Row, row8?: Row, row9?: Row, row10?: Row, row11?: Row, row12?: Row, row13?: Row, row14?: Row, row15?: Row, row16?: Row): GivenTable {
-        return new GivenTable(this.bdd, tableName, row1, row2, row3, row4, row5, row6, row7, row8, row9, row10, row11, row12, row13, row14, row15, row16);
-    }
+  /**
+   * A table must have a name and rows. The name is necessary if you want to
+   * read the values from it later (if not, just pass an empty string).
+   * Example: `ctx.table('notifications').row(0).val('read') as bool`.
+   */
+  table(tableName: string, row1: Row, row2?: Row, row3?: Row, row4?: Row, row5?: Row, row6?: Row, row7?: Row, row8?: Row, row9?: Row, row10?: Row, row11?: Row, row12?: Row, row13?: Row, row14?: Row, row15?: Row, row16?: Row): GivenTable {
+    return new GivenTable(this.bdd, tableName, row1, row2, row3, row4, row5, row6, row7, row8, row9, row10, row11, row12, row13, row14, row15, row16);
+  }
 
-    /**
-     * This keyword is used to extend a 'Given', 'When', or 'Then' step.
-     * It allows you to add multiple conditions or actions in the same step
-     * without having to repeat the 'Given', 'When', or 'Then' keyword.
-     * For example, "And I should see a confirmation message" could follow
-     * a 'Then' step to further specify the expected outcomes.
-     */
-    and(_: string): Given {
-        return Given._internal(this.bdd, _, _Variation.and);
-    }
+  /**
+   * This keyword is used to extend a 'Given', 'When', or 'Then' step.
+   * It allows you to add multiple conditions or actions in the same step
+   * without having to repeat the 'Given', 'When', or 'Then' keyword.
+   * For example, "And I should see a confirmation message" could follow
+   * a 'Then' step to further specify the expected outcomes.
+   */
+  and(_: string): Given {
+    return Given._internal(this.bdd, _, _Variation.and);
+  }
 
-    /**
-     * This keyword is used similarly to "And," but it is typically used for
-     * negative conditions or to express a contrast with the previous step.
-     * It's a way to extend a "Given," "When," or "Then" step with an additional
-     * condition that contrasts with what was previously stated. For example,
-     * after a "Then" step, you might have "But I should not be logged out."
-     * This helps in creating more comprehensive scenarios by covering both
-     * what should happen and what should not happen under certain conditions.
-     */
-    but(_: string): Given {
-        return Given._internal(this.bdd, _, _Variation.but);
-    }
+  /**
+   * This keyword is used similarly to "And," but it is typically used for
+   * negative conditions or to express a contrast with the previous step.
+   * It's a way to extend a "Given," "When," or "Then" step with an additional
+   * condition that contrasts with what was previously stated. For example,
+   * after a "Then" step, you might have "But I should not be logged out."
+   * This helps in creating more comprehensive scenarios by covering both
+   * what should happen and what should not happen under certain conditions.
+   */
+  but(_: string): Given {
+    return Given._internal(this.bdd, _, _Variation.but);
+  }
 
-    /**
-     * Often used informally in comments within a Gherkin document to provide
-     * additional information, clarifications, or explanations about the scenario
-     * or steps. Comments in Gherkin are usually marked with a hashtag (#) and
-     * are ignored when the tests are executed. A "Note" can be useful for
-     * giving context or explaining the rationale behind a certain test scenario,
-     * making it easier for others to understand the purpose and scope of the test.
-     */
-    note(_: string): Given {
-        return Given._internal(this.bdd, _, _Variation.note);
-    }
+  /**
+   * Often used informally in comments within a Gherkin document to provide
+   * additional information, clarifications, or explanations about the scenario
+   * or steps. Comments in Gherkin are usually marked with a hashtag (#) and
+   * are ignored when the tests are executed. A "Note" can be useful for
+   * giving context or explaining the rationale behind a certain test scenario,
+   * making it easier for others to understand the purpose and scope of the test.
+   */
+  note(_: string): Given {
+    return Given._internal(this.bdd, _, _Variation.note);
+  }
 
-    /**
-     * This keyword indicates the specific action taken by the user or the system.
-     * It's the trigger for the behavior that you're specifying. For instance,
-     * "When I click the 'Submit' button" describes the action taken after the
-     * initial context is set by the 'Given' step.
-     */
-    when(_: string): When {
-        return new When(this.bdd, _);
-    }
+  /**
+   * This keyword indicates the specific action taken by the user or the system.
+   * It's the trigger for the behavior that you're specifying. For instance,
+   * "When I click the 'Submit' button" describes the action taken after the
+   * initial context is set by the 'Given' step.
+   */
+  when(_: string): When {
+    return new When(this.bdd, _);
+  }
 
-    /**
-     * This keyword is used to describe the expected outcome or result after the
-     * 'When' step is executed. It's used to assert that a certain outcome should
-     * occur, which helps to validate whether the system behaves as expected.
-     * An example is, "Then I should be redirected to the dashboard".
-     */
-    then(_: string): Then {
-        return new Then(this.bdd, _);
-    }
+  /**
+   * This keyword is used to describe the expected outcome or result after the
+   * 'When' step is executed. It's used to assert that a certain outcome should
+   * occur, which helps to validate whether the system behaves as expected.
+   * An example is, "Then I should be redirected to the dashboard".
+   */
+  then(_: string): Then {
+    return new Then(this.bdd, _);
+  }
 
-    code(code: CodeRun): _GivenCode {
-        return new _GivenCode(this.bdd, code);
-    }
+  code(code: CodeRun): _GivenCode {
+    return new _GivenCode(this.bdd, code);
+  }
 
-    toString(config: Config = Config._default): string {
-        return super.toString(config);
-    }
+  toString(config: Config = Config._default): string {
+    return super.toString(config);
+  }
 }
 
 class _GivenCode extends CodeTerm {
 
-    constructor(bdd: BDD, code: CodeRun) {
-        super(bdd, code);
-    }
+  constructor(bdd: BDD, code: CodeRun) {
+    super(bdd, code);
+  }
 
-    /**
-     * A table must have a name and rows. The name is necessary if you want to
-     * read the values from it later (if not, just pass an empty string).
-     * Example: `ctx.table('notifications').row(0).val('read') as bool`.
-     */
-    table(tableName: string, row1: Row, row2?: Row, row3?: Row, row4?: Row): GivenTable {
-        return new GivenTable(this.bdd, tableName, row1, row2, row3, row4);
-    }
+  /**
+   * A table must have a name and rows. The name is necessary if you want to
+   * read the values from it later (if not, just pass an empty string).
+   * Example: `ctx.table('notifications').row(0).val('read') as bool`.
+   */
+  table(tableName: string, row1: Row, row2?: Row, row3?: Row, row4?: Row): GivenTable {
+    return new GivenTable(this.bdd, tableName, row1, row2, row3, row4);
+  }
 
-    /**
-     * This keyword is used to extend a 'Given', 'When', or 'Then' step.
-     * It allows you to add multiple conditions or actions in the same step
-     * without having to repeat the 'Given', 'When', or 'Then' keyword.
-     * For example, "And I should see a confirmation message" could follow
-     * a 'Then' step to further specify the expected outcomes.
-     */
-    and(_: string): Given {
-        return Given._internal(this.bdd, _, _Variation.and);
-    }
+  /**
+   * This keyword is used to extend a 'Given', 'When', or 'Then' step.
+   * It allows you to add multiple conditions or actions in the same step
+   * without having to repeat the 'Given', 'When', or 'Then' keyword.
+   * For example, "And I should see a confirmation message" could follow
+   * a 'Then' step to further specify the expected outcomes.
+   */
+  and(_: string): Given {
+    return Given._internal(this.bdd, _, _Variation.and);
+  }
 
-    /**
-     * This keyword is used similarly to "And," but it is typically used for
-     * negative conditions or to express a contrast with the previous step.
-     * It's a way to extend a "Given," "When," or "Then" step with an additional
-     * condition that contrasts with what was previously stated. For example,
-     * after a "Then" step, you might have "But I should not be logged out."
-     * This helps in creating more comprehensive scenarios by covering both
-     * what should happen and what should not happen under certain conditions.
-     */
-    but(_: string): Given {
-        return Given._internal(this.bdd, _, _Variation.but);
-    }
+  /**
+   * This keyword is used similarly to "And," but it is typically used for
+   * negative conditions or to express a contrast with the previous step.
+   * It's a way to extend a "Given," "When," or "Then" step with an additional
+   * condition that contrasts with what was previously stated. For example,
+   * after a "Then" step, you might have "But I should not be logged out."
+   * This helps in creating more comprehensive scenarios by covering both
+   * what should happen and what should not happen under certain conditions.
+   */
+  but(_: string): Given {
+    return Given._internal(this.bdd, _, _Variation.but);
+  }
 
-    /**
-     * Often used informally in comments within a Gherkin document to provide
-     * additional information, clarifications, or explanations about the scenario
-     * or steps. Comments in Gherkin are usually marked with a hashtag (#) and
-     * are ignored when the tests are executed. A "Note" can be useful for
-     * giving context or explaining the rationale behind a certain test scenario,
-     * making it easier for others to understand the purpose and scope of the test.
-     */
-    note(_: string): Given {
-        return Given._internal(this.bdd, _, _Variation.note);
-    }
+  /**
+   * Often used informally in comments within a Gherkin document to provide
+   * additional information, clarifications, or explanations about the scenario
+   * or steps. Comments in Gherkin are usually marked with a hashtag (#) and
+   * are ignored when the tests are executed. A "Note" can be useful for
+   * giving context or explaining the rationale behind a certain test scenario,
+   * making it easier for others to understand the purpose and scope of the test.
+   */
+  note(_: string): Given {
+    return Given._internal(this.bdd, _, _Variation.note);
+  }
 
-    /**
-     * This keyword indicates the specific action taken by the user or the system.
-     * It's the trigger for the behavior that you're specifying. For instance,
-     * "When I click the 'Submit' button" describes the action taken after the
-     * initial context is set by the 'Given' step.
-     */
-    when(_: string): When {
-        return new When(this.bdd, _);
-    }
+  /**
+   * This keyword indicates the specific action taken by the user or the system.
+   * It's the trigger for the behavior that you're specifying. For instance,
+   * "When I click the 'Submit' button" describes the action taken after the
+   * initial context is set by the 'Given' step.
+   */
+  when(_: string): When {
+    return new When(this.bdd, _);
+  }
 
-    code(code: CodeRun): _GivenCode {
-        return new _GivenCode(this.bdd, code);
-    }
+  code(code: CodeRun): _GivenCode {
+    return new _GivenCode(this.bdd, code);
+  }
 }
 
 class When extends Term {
-    constructor(bdd: BDD, text: string, variation: _Variation = _Variation.term) {
-        super(bdd, text, variation);
-    }
+  constructor(bdd: BDD, text: string, variation: _Variation = _Variation.term) {
+    super(bdd, text, variation);
+  }
 
-    static _internal(bdd: BDD, text: string, variation: _Variation): When {
-        return new When(bdd, text, variation);
-    }
+  static _internal(bdd: BDD, text: string, variation: _Variation): When {
+    return new When(bdd, text, variation);
+  }
 
-    spaces(config: Config): string {
-        return config.spaces + config.spaces;
-    }
+  spaces(config: Config): string {
+    return config.spaces + config.spaces;
+  }
 
-    keyword(config: Config): string {
-        return this._keywordVariation(config) ?? config.keywords.when;
-    }
+  keyword(config: Config): string {
+    return this._keywordVariation(config) ?? config.keywords.when;
+  }
 
-    keywordPrefix(config: Config): string {
-        return this._keywordPrefixVariation(config) ?? config.keywordPrefix.when;
-    }
+  keywordPrefix(config: Config): string {
+    return this._keywordPrefixVariation(config) ?? config.keywordPrefix.when;
+  }
 
-    keywordSuffix(config: Config): string {
-        return this._keywordSuffixVariation(config) ?? config.keywordSuffix.when;
-    }
+  keywordSuffix(config: Config): string {
+    return this._keywordSuffixVariation(config) ?? config.keywordSuffix.when;
+  }
 
-    prefix(config: Config): string {
-        return this._prefixVariation(config) ?? config.prefix.when;
-    }
+  prefix(config: Config): string {
+    return this._prefixVariation(config) ?? config.prefix.when;
+  }
 
-    suffix(config: Config): string {
-        return this._suffixVariation(config) ?? config.suffix.when;
-    }
+  suffix(config: Config): string {
+    return this._suffixVariation(config) ?? config.suffix.when;
+  }
 
-    /**
-     * A table must have a name and rows. The name is necessary if you want to
-     * read the values from it later (if not, just pass an empty string).
-     * Example: `ctx.table('notifications').row(0).val('read') as bool`.
-     */
-    table(tableName: string, row1: Row, row2?: Row, row3?: Row, row4?: Row): WhenTable {
-        return new WhenTable(this.bdd, tableName, row1, row2, row3, row4);
-    }
+  /**
+   * A table must have a name and rows. The name is necessary if you want to
+   * read the values from it later (if not, just pass an empty string).
+   * Example: `ctx.table('notifications').row(0).val('read') as bool`.
+   */
+  table(tableName: string, row1: Row, row2?: Row, row3?: Row, row4?: Row): WhenTable {
+    return new WhenTable(this.bdd, tableName, row1, row2, row3, row4);
+  }
 
-    /**
-     * This keyword is used to extend a 'Given', 'When', or 'Then' step.
-     * It allows you to add multiple conditions or actions in the same step
-     * without having to repeat the 'Given', 'When', or 'Then' keyword.
-     * For example, "And I should see a confirmation message" could follow
-     * a 'Then' step to further specify the expected outcomes.
-     */
-    and(_: string): When {
-        return When._internal(this.bdd, _, _Variation.and);
-    }
+  /**
+   * This keyword is used to extend a 'Given', 'When', or 'Then' step.
+   * It allows you to add multiple conditions or actions in the same step
+   * without having to repeat the 'Given', 'When', or 'Then' keyword.
+   * For example, "And I should see a confirmation message" could follow
+   * a 'Then' step to further specify the expected outcomes.
+   */
+  and(_: string): When {
+    return When._internal(this.bdd, _, _Variation.and);
+  }
 
-    /**
-     * This keyword is used similarly to "And," but it is typically used for
-     * negative conditions or to express a contrast with the previous step.
-     * It's a way to extend a "Given," "When," or "Then" step with an additional
-     * condition that contrasts with what was previously stated. For example,
-     * after a "Then" step, you might have "But I should not be logged out."
-     * This helps in creating more comprehensive scenarios by covering both
-     * what should happen and what should not happen under certain conditions.
-     */
-    but(_: string): When {
-        return When._internal(this.bdd, _, _Variation.but);
-    }
+  /**
+   * This keyword is used similarly to "And," but it is typically used for
+   * negative conditions or to express a contrast with the previous step.
+   * It's a way to extend a "Given," "When," or "Then" step with an additional
+   * condition that contrasts with what was previously stated. For example,
+   * after a "Then" step, you might have "But I should not be logged out."
+   * This helps in creating more comprehensive scenarios by covering both
+   * what should happen and what should not happen under certain conditions.
+   */
+  but(_: string): When {
+    return When._internal(this.bdd, _, _Variation.but);
+  }
 
-    /**
-     * Often used informally in comments within a Gherkin document to provide
-     * additional information, clarifications, or explanations about the scenario
-     * or steps. Comments in Gherkin are usually marked with a hashtag (#) and
-     * are ignored when the tests are executed. A "Note" can be useful for
-     * giving context or explaining the rationale behind a certain test scenario,
-     * making it easier for others to understand the purpose and scope of the test.
-     */
-    note(_: string): When {
-        return When._internal(this.bdd, _, _Variation.note);
-    }
+  /**
+   * Often used informally in comments within a Gherkin document to provide
+   * additional information, clarifications, or explanations about the scenario
+   * or steps. Comments in Gherkin are usually marked with a hashtag (#) and
+   * are ignored when the tests are executed. A "Note" can be useful for
+   * giving context or explaining the rationale behind a certain test scenario,
+   * making it easier for others to understand the purpose and scope of the test.
+   */
+  note(_: string): When {
+    return When._internal(this.bdd, _, _Variation.note);
+  }
 
-    /**
-     * This keyword is used to describe the expected outcome or result after the
-     * 'When' step is executed. It's used to assert that a certain outcome should
-     * occur, which helps to validate whether the system behaves as expected.
-     * An example is, "Then I should be redirected to the dashboard".
-     */
-    then(_: string): Then {
-        return new Then(this.bdd, _);
-    }
+  /**
+   * This keyword is used to describe the expected outcome or result after the
+   * 'When' step is executed. It's used to assert that a certain outcome should
+   * occur, which helps to validate whether the system behaves as expected.
+   * An example is, "Then I should be redirected to the dashboard".
+   */
+  then(_: string): Then {
+    return new Then(this.bdd, _);
+  }
 
-    code(code: CodeRun): _WhenCode {
-        return new _WhenCode(this.bdd, code);
-    }
+  code(code: CodeRun): _WhenCode {
+    return new _WhenCode(this.bdd, code);
+  }
 
-    run(code: CodeRun): void {
-        new _Run().run(this.bdd, code);
-    }
+  run(code: CodeRun): void {
+    new _Run().run(this.bdd, code);
+  }
 
-    toString(config: Config = Config._default): string {
-        return super.toString(config);
-    }
+  toString(config: Config = Config._default): string {
+    return super.toString(config);
+  }
 }
 
 class _WhenCode extends CodeTerm {
-    constructor(bdd: BDD, code: CodeRun) {
-        super(bdd, code);
-    }
+  constructor(bdd: BDD, code: CodeRun) {
+    super(bdd, code);
+  }
 
-    /**
-     * A table must have a name and rows. The name is necessary if you want to
-     * read the values from it later (if not, just pass an empty string).
-     * Example: `ctx.table('notifications').row(0).val('read') as bool`.
-     */
-    table(tableName: string, row1: Row, row2?: Row, row3?: Row, row4?: Row): WhenTable {
-        return new WhenTable(this.bdd, tableName, row1, row2, row3, row4);
-    }
+  /**
+   * A table must have a name and rows. The name is necessary if you want to
+   * read the values from it later (if not, just pass an empty string).
+   * Example: `ctx.table('notifications').row(0).val('read') as bool`.
+   */
+  table(tableName: string, row1: Row, row2?: Row, row3?: Row, row4?: Row): WhenTable {
+    return new WhenTable(this.bdd, tableName, row1, row2, row3, row4);
+  }
 
-    /**
-     * This keyword is used to extend a 'Given', 'When', or 'Then' step.
-     * It allows you to add multiple conditions or actions in the same step
-     * without having to repeat the 'Given', 'When', or 'Then' keyword.
-     * For example, "And I should see a confirmation message" could follow
-     * a 'Then' step to further specify the expected outcomes.
-     */
-    and(_: string): When {
-        return When._internal(this.bdd, _, _Variation.and);
-    }
+  /**
+   * This keyword is used to extend a 'Given', 'When', or 'Then' step.
+   * It allows you to add multiple conditions or actions in the same step
+   * without having to repeat the 'Given', 'When', or 'Then' keyword.
+   * For example, "And I should see a confirmation message" could follow
+   * a 'Then' step to further specify the expected outcomes.
+   */
+  and(_: string): When {
+    return When._internal(this.bdd, _, _Variation.and);
+  }
 
-    /**
-     * This keyword is used similarly to "And," but it is typically used for
-     * negative conditions or to express a contrast with the previous step.
-     * It's a way to extend a "Given," "When," or "Then" step with an additional
-     * condition that contrasts with what was previously stated. For example,
-     * after a "Then" step, you might have "But I should not be logged out."
-     * This helps in creating more comprehensive scenarios by covering both
-     * what should happen and what should not happen under certain conditions.
-     */
-    but(_: string): When {
-        return When._internal(this.bdd, _, _Variation.but);
-    }
+  /**
+   * This keyword is used similarly to "And," but it is typically used for
+   * negative conditions or to express a contrast with the previous step.
+   * It's a way to extend a "Given," "When," or "Then" step with an additional
+   * condition that contrasts with what was previously stated. For example,
+   * after a "Then" step, you might have "But I should not be logged out."
+   * This helps in creating more comprehensive scenarios by covering both
+   * what should happen and what should not happen under certain conditions.
+   */
+  but(_: string): When {
+    return When._internal(this.bdd, _, _Variation.but);
+  }
 
-    /**
-     * Often used informally in comments within a Gherkin document to provide
-     * additional information, clarifications, or explanations about the scenario
-     * or steps. Comments in Gherkin are usually marked with a hashtag (#) and
-     * are ignored when the tests are executed. A "Note" can be useful for
-     * giving context or explaining the rationale behind a certain test scenario,
-     * making it easier for others to understand the purpose and scope of the test.
-     */
-    note(_: string): When {
-        return When._internal(this.bdd, _, _Variation.note);
-    }
+  /**
+   * Often used informally in comments within a Gherkin document to provide
+   * additional information, clarifications, or explanations about the scenario
+   * or steps. Comments in Gherkin are usually marked with a hashtag (#) and
+   * are ignored when the tests are executed. A "Note" can be useful for
+   * giving context or explaining the rationale behind a certain test scenario,
+   * making it easier for others to understand the purpose and scope of the test.
+   */
+  note(_: string): When {
+    return When._internal(this.bdd, _, _Variation.note);
+  }
 
-    /**
-     * This keyword is used to describe the expected outcome or result after the
-     * 'When' step is executed. It's used to assert that a certain outcome should
-     * occur, which helps to validate whether the system behaves as expected.
-     * An example is, "Then I should be redirected to the dashboard".
-     */
-    then(_: string): Then {
-        return new Then(this.bdd, _);
-    }
+  /**
+   * This keyword is used to describe the expected outcome or result after the
+   * 'When' step is executed. It's used to assert that a certain outcome should
+   * occur, which helps to validate whether the system behaves as expected.
+   * An example is, "Then I should be redirected to the dashboard".
+   */
+  then(_: string): Then {
+    return new Then(this.bdd, _);
+  }
 
-    code(code: CodeRun): _WhenCode {
-        return new _WhenCode(this.bdd, code);
-    }
+  code(code: CodeRun): _WhenCode {
+    return new _WhenCode(this.bdd, code);
+  }
 }
 
 class Then extends Term {
-    constructor(bdd: BDD, text: string, variation: _Variation = _Variation.term) {
-        super(bdd, text, variation);
-    }
+  constructor(bdd: BDD, text: string, variation: _Variation = _Variation.term) {
+    super(bdd, text, variation);
+  }
 
-    protected static _internal(bdd: BDD, text: string, variation: _Variation): Then {
-        return new Then(bdd, text, variation);
-    }
+  protected static _internal(bdd: BDD, text: string, variation: _Variation): Then {
+    return new Then(bdd, text, variation);
+  }
 
-    spaces(config: Config): string {
-        return config.spaces + config.spaces;
-    }
+  spaces(config: Config): string {
+    return config.spaces + config.spaces;
+  }
 
-    keyword(config: Config): string {
-        return this._keywordVariation(config) ?? config.keywords.then;
-    }
+  keyword(config: Config): string {
+    return this._keywordVariation(config) ?? config.keywords.then;
+  }
 
-    keywordPrefix(config: Config): string {
-        return this._keywordPrefixVariation(config) ?? config.keywordPrefix.then;
-    }
+  keywordPrefix(config: Config): string {
+    return this._keywordPrefixVariation(config) ?? config.keywordPrefix.then;
+  }
 
-    keywordSuffix(config: Config): string {
-        return this._keywordSuffixVariation(config) ?? config.keywordSuffix.then;
-    }
+  keywordSuffix(config: Config): string {
+    return this._keywordSuffixVariation(config) ?? config.keywordSuffix.then;
+  }
 
-    prefix(config: Config): string {
-        return this._prefixVariation(config) ?? config.prefix.then;
-    }
+  prefix(config: Config): string {
+    return this._prefixVariation(config) ?? config.prefix.then;
+  }
 
-    suffix(config: Config): string {
-        return this._suffixVariation(config) ?? config.suffix.then;
-    }
+  suffix(config: Config): string {
+    return this._suffixVariation(config) ?? config.suffix.then;
+  }
 
-    /**
-     * A table must have a name and rows. The name is necessary if you want to
-     * read the values from it later (if not, just pass an empty string).
-     * Example: `ctx.table('notifications').row(0).val('read') as bool`.
-     */
-    table(tableName: string, row1: Row, row2?: Row, row3?: Row, row4?: Row): ThenTable {
-        return new ThenTable(this.bdd, tableName, row1, row2, row3, row4);
-    }
+  /**
+   * A table must have a name and rows. The name is necessary if you want to
+   * read the values from it later (if not, just pass an empty string).
+   * Example: `ctx.table('notifications').row(0).val('read') as bool`.
+   */
+  table(tableName: string, row1: Row, row2?: Row, row3?: Row, row4?: Row): ThenTable {
+    return new ThenTable(this.bdd, tableName, row1, row2, row3, row4);
+  }
 
-    /**
-     * This keyword is used to extend a 'Given', 'When', or 'Then' step.
-     * It allows you to add multiple conditions or actions in the same step
-     * without having to repeat the 'Given', 'When', or 'Then' keyword.
-     * For example, "And I should see a confirmation message" could follow
-     * a 'Then' step to further specify the expected outcomes.
-     */
-    and(_: string): Then {
-        return Then._internal(this.bdd, _, _Variation.and);
-    }
+  /**
+   * This keyword is used to extend a 'Given', 'When', or 'Then' step.
+   * It allows you to add multiple conditions or actions in the same step
+   * without having to repeat the 'Given', 'When', or 'Then' keyword.
+   * For example, "And I should see a confirmation message" could follow
+   * a 'Then' step to further specify the expected outcomes.
+   */
+  and(_: string): Then {
+    return Then._internal(this.bdd, _, _Variation.and);
+  }
 
-    /**
-     * This keyword is used similarly to "And," but it is typically used for
-     * negative conditions or to express a contrast with the previous step.
-     * It's a way to extend a "Given," "When," or "Then" step with an additional
-     * condition that contrasts with what was previously stated. For example,
-     * after a "Then" step, you might have "But I should not be logged out."
-     * This helps in creating more comprehensive scenarios by covering both
-     * what should happen and what should not happen under certain conditions.
-     */
-    but(_: string): Then {
-        return Then._internal(this.bdd, _, _Variation.but);
-    }
+  /**
+   * This keyword is used similarly to "And," but it is typically used for
+   * negative conditions or to express a contrast with the previous step.
+   * It's a way to extend a "Given," "When," or "Then" step with an additional
+   * condition that contrasts with what was previously stated. For example,
+   * after a "Then" step, you might have "But I should not be logged out."
+   * This helps in creating more comprehensive scenarios by covering both
+   * what should happen and what should not happen under certain conditions.
+   */
+  but(_: string): Then {
+    return Then._internal(this.bdd, _, _Variation.but);
+  }
 
-    /**
-     * Often used informally in comments within a Gherkin document to provide
-     * additional information, clarifications, or explanations about the scenario
-     * or steps. Comments in Gherkin are usually marked with a hashtag (#) and
-     * are ignored when the tests are executed. A "Note" can be useful for
-     * giving context or explaining the rationale behind a certain test scenario,
-     * making it easier for others to understand the purpose and scope of the test.
-     */
-    note(_: string): Then {
-        return Then._internal(this.bdd, _, _Variation.note);
-    }
+  /**
+   * Often used informally in comments within a Gherkin document to provide
+   * additional information, clarifications, or explanations about the scenario
+   * or steps. Comments in Gherkin are usually marked with a hashtag (#) and
+   * are ignored when the tests are executed. A "Note" can be useful for
+   * giving context or explaining the rationale behind a certain test scenario,
+   * making it easier for others to understand the purpose and scope of the test.
+   */
+  note(_: string): Then {
+    return Then._internal(this.bdd, _, _Variation.note);
+  }
 
-    /**
-     * Examples are used in the context of Scenario Outlines. A Scenario Outline
-     * is a template for multiple tests, and the "Examples" section provides
-     * concrete values to be substituted into the template for each test run.
-     * This approach allows for the specification of multiple scenarios using the
-     * same pattern of action but with different sets of data.
-     *
-     * Here’s how it works:
-     *
-     * Scenario Outline: This is a kind of scenario that is run multiple times
-     * with different data. It includes variables in the Given-When-Then steps,
-     * which are indicated with angle brackets, like <variable>.
-     *
-     * Examples: This keyword introduces a table right below the Scenario Outline.
-     * Each row in this table (except the header) represents a set of values that
-     * will be passed into the Scenario Outline’s variables. The header row
-     * defines the names of these variables.
-     *
-     * For example, if you have a Scenario Outline describing the login process,
-     * you might have variables for username and password. The Examples table
-     * will then list different combinations of usernames and passwords to test
-     * various login scenarios.
-     *
-     * This approach is particularly useful for testing the same feature or
-     * functionality under different conditions and with different inputs,
-     * making your tests more comprehensive and robust. It also keeps your
-     * Gherkin feature files DRY (Don't Repeat Yourself), as you avoid writing
-     * multiple scenarios that differ only in the data they use.
-     *
-     * ```
-     *   Bdd(feature)
-     *       .scenario('Buying and Selling stocks changes the average price.')
-     *       .given('The user has <Quantity> shares of <Ticker> at <At> dollars each.')
-     *       .when('The user <BuyOrSell> <How many> of these stock at <Price> for each share.')
-     *       .then('The number of shares becomes <Quantity> plus/minus <How many>.')
-     *       .and('The average price for the stock becomes <Average Price>.')
-     *       .example(
-     *         val('Ticker', 'IBM'),
-     *         val('Quantity', 10),
-     *         val('At', 100.00),
-     *         val('BuyOrSell', BuyOrSell.buy),
-     *         val('How many', 2),
-     *         val('Price', 50.00),
-     *         val('Average Price', 91.67),
-     *       )
-     *       .example(
-     *         val('Ticker', 'IBM'),
-     *         val('Quantity', 8),
-     *         val('At', 200.00),
-     *         val('BuyOrSell', BuyOrSell.sell),
-     *         val('How many', 3),
-     *         val('Price', 30.00),
-     *         val('Average Price', 302.00),
-     *       )
-     *       .run((ctx) async { ...
-     * ```
-     */
-    example(v1: Val, v2?: Val, v3?: Val, v4?: Val, v5?: Val, v6?: Val, v7?: Val, v8?: Val, v9?: Val, v10?: Val, v11?: Val, v12?: Val, v13?: Val, v14?: Val, v15?: Val): Example {
-        return new Example(this.bdd, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15);
-    }
+  /**
+   * Examples are used in the context of Scenario Outlines. A Scenario Outline
+   * is a template for multiple tests, and the "Examples" section provides
+   * concrete values to be substituted into the template for each test run.
+   * This approach allows for the specification of multiple scenarios using the
+   * same pattern of action but with different sets of data.
+   *
+   * Here’s how it works:
+   *
+   * Scenario Outline: This is a kind of scenario that is run multiple times
+   * with different data. It includes variables in the Given-When-Then steps,
+   * which are indicated with angle brackets, like <variable>.
+   *
+   * Examples: This keyword introduces a table right below the Scenario Outline.
+   * Each row in this table (except the header) represents a set of values that
+   * will be passed into the Scenario Outline’s variables. The header row
+   * defines the names of these variables.
+   *
+   * For example, if you have a Scenario Outline describing the login process,
+   * you might have variables for username and password. The Examples table
+   * will then list different combinations of usernames and passwords to test
+   * various login scenarios.
+   *
+   * This approach is particularly useful for testing the same feature or
+   * functionality under different conditions and with different inputs,
+   * making your tests more comprehensive and robust. It also keeps your
+   * Gherkin feature files DRY (Don't Repeat Yourself), as you avoid writing
+   * multiple scenarios that differ only in the data they use.
+   *
+   * ```
+   *   Bdd(feature)
+   *       .scenario('Buying and Selling stocks changes the average price.')
+   *       .given('The user has <Quantity> shares of <Ticker> at <At> dollars each.')
+   *       .when('The user <BuyOrSell> <How many> of these stock at <Price> for each share.')
+   *       .then('The number of shares becomes <Quantity> plus/minus <How many>.')
+   *       .and('The average price for the stock becomes <Average Price>.')
+   *       .example(
+   *         val('Ticker', 'IBM'),
+   *         val('Quantity', 10),
+   *         val('At', 100.00),
+   *         val('BuyOrSell', BuyOrSell.buy),
+   *         val('How many', 2),
+   *         val('Price', 50.00),
+   *         val('Average Price', 91.67),
+   *       )
+   *       .example(
+   *         val('Ticker', 'IBM'),
+   *         val('Quantity', 8),
+   *         val('At', 200.00),
+   *         val('BuyOrSell', BuyOrSell.sell),
+   *         val('How many', 3),
+   *         val('Price', 30.00),
+   *         val('Average Price', 302.00),
+   *       )
+   *       .run((ctx) async { ...
+   * ```
+   */
+  example(v1: Val, v2?: Val, v3?: Val, v4?: Val, v5?: Val, v6?: Val, v7?: Val, v8?: Val, v9?: Val, v10?: Val, v11?: Val, v12?: Val, v13?: Val, v14?: Val, v15?: Val): Example {
+    return new Example(this.bdd, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15);
+  }
 
-    code(code: CodeRun): _ThenCode {
-        return new _ThenCode(this.bdd, code);
-    }
+  code(code: CodeRun): _ThenCode {
+    return new _ThenCode(this.bdd, code);
+  }
 
-    run(code: CodeRun): void {
-        new _Run().run(this.bdd, code);
-    }
+  run(code: CodeRun): void {
+    new _Run().run(this.bdd, code);
+  }
 
-    testRun(code: CodeRun, reporter: BddReporter): BDD {
-        new _TestRun(code, reporter).run(this.bdd);
-        return this.bdd;
-    }
+  testRun(code: CodeRun, reporter: BddReporter): BDD {
+    new _TestRun(code, reporter).run(this.bdd);
+    return this.bdd;
+  }
 
-    toString(config: Config = Config._default): string {
-        return super.toString(config);
-    }
+  toString(config: Config = Config._default): string {
+    return super.toString(config);
+  }
 }
 
 class _ThenCode extends CodeTerm {
-    constructor(bdd: BDD, code: CodeRun) {
-        super(bdd, code);
-    }
+  constructor(bdd: BDD, code: CodeRun) {
+    super(bdd, code);
+  }
 
-    /**
-     * A table must have a name and rows. The name is necessary if you want to
-     * read the values from it later (if not, just pass an empty string).
-     * Example: `ctx.table('notifications').row(0).val('read') as bool`.
-     */
-    table(tableName: string, row1: Row, row2?: Row, row3?: Row, row4?: Row): ThenTable {
-        return new ThenTable(this.bdd, tableName, row1, row2, row3, row4);
-    }
+  /**
+   * A table must have a name and rows. The name is necessary if you want to
+   * read the values from it later (if not, just pass an empty string).
+   * Example: `ctx.table('notifications').row(0).val('read') as bool`.
+   */
+  table(tableName: string, row1: Row, row2?: Row, row3?: Row, row4?: Row): ThenTable {
+    return new ThenTable(this.bdd, tableName, row1, row2, row3, row4);
+  }
 
-    /**
-     * Examples are used in the context of Scenario Outlines. A Scenario Outline
-     * is a template for multiple tests, and the "Examples" section provides
-     * concrete values to be substituted into the template for each test run.
-     * This approach allows for the specification of multiple scenarios using the
-     * same pattern of action but with different sets of data.
-     *
-     * Here’s how it works:
-     *
-     * Scenario Outline: This is a kind of scenario that is run multiple times
-     * with different data. It includes variables in the Given-When-Then steps,
-     * which are indicated with angle brackets, like <variable>.
-     *
-     * Examples: This keyword introduces a table right below the Scenario Outline.
-     * Each row in this table (except the header) represents a set of values that
-     * will be passed into the Scenario Outline’s variables. The header row
-     * defines the names of these variables.
-     *
-     * For example, if you have a Scenario Outline describing the login process,
-     * you might have variables for username and password. The Examples table
-     * will then list different combinations of usernames and passwords to test
-     * various login scenarios.
-     *
-     * This approach is particularly useful for testing the same feature or
-     * functionality under different conditions and with different inputs,
-     * making your tests more comprehensive and robust. It also keeps your
-     * Gherkin feature files DRY (Don't Repeat Yourself), as you avoid writing
-     * multiple scenarios that differ only in the data they use.
-     *
-     * ```
-     *   Bdd(feature)
-     *       .scenario('Buying and Selling stocks changes the average price.')
-     *       .given('The user has <Quantity> shares of <Ticker> at <At> dollars each.')
-     *       .when('The user <BuyOrSell> <How many> of these stock at <Price> for each share.')
-     *       .then('The number of shares becomes <Quantity> plus/minus <How many>.')
-     *       .and('The average price for the stock becomes <Average Price>.')
-     *       .example(
-     *         val('Ticker', 'IBM'),
-     *         val('Quantity', 10),
-     *         val('At', 100.00),
-     *         val('BuyOrSell', BuyOrSell.buy),
-     *         val('How many', 2),
-     *         val('Price', 50.00),
-     *         val('Average Price', 91.67),
-     *       )
-     *       .example(
-     *         val('Ticker', 'IBM'),
-     *         val('Quantity', 8),
-     *         val('At', 200.00),
-     *         val('BuyOrSell', BuyOrSell.sell),
-     *         val('How many', 3),
-     *         val('Price', 30.00),
-     *         val('Average Price', 302.00),
-     *       )
-     *       .run((ctx) async { ...
-     * ```
-     */
-    example(v1: Val, v2?: Val, v3?: Val, v4?: Val, v5?: Val, v6?: Val, v7?: Val, v8?: Val, v9?: Val, v10?: Val, v11?: Val, v12?: Val, v13?: Val, v14?: Val, v15?: Val): Example {
-        return new Example(this.bdd, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15);
-    }
+  /**
+   * Examples are used in the context of Scenario Outlines. A Scenario Outline
+   * is a template for multiple tests, and the "Examples" section provides
+   * concrete values to be substituted into the template for each test run.
+   * This approach allows for the specification of multiple scenarios using the
+   * same pattern of action but with different sets of data.
+   *
+   * Here’s how it works:
+   *
+   * Scenario Outline: This is a kind of scenario that is run multiple times
+   * with different data. It includes variables in the Given-When-Then steps,
+   * which are indicated with angle brackets, like <variable>.
+   *
+   * Examples: This keyword introduces a table right below the Scenario Outline.
+   * Each row in this table (except the header) represents a set of values that
+   * will be passed into the Scenario Outline’s variables. The header row
+   * defines the names of these variables.
+   *
+   * For example, if you have a Scenario Outline describing the login process,
+   * you might have variables for username and password. The Examples table
+   * will then list different combinations of usernames and passwords to test
+   * various login scenarios.
+   *
+   * This approach is particularly useful for testing the same feature or
+   * functionality under different conditions and with different inputs,
+   * making your tests more comprehensive and robust. It also keeps your
+   * Gherkin feature files DRY (Don't Repeat Yourself), as you avoid writing
+   * multiple scenarios that differ only in the data they use.
+   *
+   * ```
+   *   Bdd(feature)
+   *       .scenario('Buying and Selling stocks changes the average price.')
+   *       .given('The user has <Quantity> shares of <Ticker> at <At> dollars each.')
+   *       .when('The user <BuyOrSell> <How many> of these stock at <Price> for each share.')
+   *       .then('The number of shares becomes <Quantity> plus/minus <How many>.')
+   *       .and('The average price for the stock becomes <Average Price>.')
+   *       .example(
+   *         val('Ticker', 'IBM'),
+   *         val('Quantity', 10),
+   *         val('At', 100.00),
+   *         val('BuyOrSell', BuyOrSell.buy),
+   *         val('How many', 2),
+   *         val('Price', 50.00),
+   *         val('Average Price', 91.67),
+   *       )
+   *       .example(
+   *         val('Ticker', 'IBM'),
+   *         val('Quantity', 8),
+   *         val('At', 200.00),
+   *         val('BuyOrSell', BuyOrSell.sell),
+   *         val('How many', 3),
+   *         val('Price', 30.00),
+   *         val('Average Price', 302.00),
+   *       )
+   *       .run((ctx) async { ...
+   * ```
+   */
+  example(v1: Val, v2?: Val, v3?: Val, v4?: Val, v5?: Val, v6?: Val, v7?: Val, v8?: Val, v9?: Val, v10?: Val, v11?: Val, v12?: Val, v13?: Val, v14?: Val, v15?: Val): Example {
+    return new Example(this.bdd, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15);
+  }
 
-    /**
-     * This keyword is used to extend a 'Given', 'When', or 'Then' step.
-     * It allows you to add multiple conditions or actions in the same step
-     * without having to repeat the 'Given', 'When', or 'Then' keyword.
-     * For example, "And I should see a confirmation message" could follow
-     * a 'Then' step to further specify the expected outcomes.
-     */
-    and(_: string): When {
-        return When._internal(this.bdd, _, _Variation.and);
-    }
+  /**
+   * This keyword is used to extend a 'Given', 'When', or 'Then' step.
+   * It allows you to add multiple conditions or actions in the same step
+   * without having to repeat the 'Given', 'When', or 'Then' keyword.
+   * For example, "And I should see a confirmation message" could follow
+   * a 'Then' step to further specify the expected outcomes.
+   */
+  and(_: string): When {
+    return When._internal(this.bdd, _, _Variation.and);
+  }
 
-    /**
-     * This keyword is used similarly to "And," but it is typically used for
-     * negative conditions or to express a contrast with the previous step.
-     * It's a way to extend a "Given," "When," or "Then" step with an additional
-     * condition that contrasts with what was previously stated. For example,
-     * after a "Then" step, you might have "But I should not be logged out."
-     * This helps in creating more comprehensive scenarios by covering both
-     * what should happen and what should not happen under certain conditions.
-     */
-    but(_: string): When {
-        return When._internal(this.bdd, _, _Variation.but);
-    }
+  /**
+   * This keyword is used similarly to "And," but it is typically used for
+   * negative conditions or to express a contrast with the previous step.
+   * It's a way to extend a "Given," "When," or "Then" step with an additional
+   * condition that contrasts with what was previously stated. For example,
+   * after a "Then" step, you might have "But I should not be logged out."
+   * This helps in creating more comprehensive scenarios by covering both
+   * what should happen and what should not happen under certain conditions.
+   */
+  but(_: string): When {
+    return When._internal(this.bdd, _, _Variation.but);
+  }
 
-    /**
-     * Often used informally in comments within a Gherkin document to provide
-     * additional information, clarifications, or explanations about the scenario
-     * or steps. Comments in Gherkin are usually marked with a hashtag (#) and
-     * are ignored when the tests are executed. A "Note" can be useful for
-     * giving context or explaining the rationale behind a certain test scenario,
-     * making it easier for others to understand the purpose and scope of the test.
-     */
-    note(_: string): When {
-        return When._internal(this.bdd, _, _Variation.note);
-    }
+  /**
+   * Often used informally in comments within a Gherkin document to provide
+   * additional information, clarifications, or explanations about the scenario
+   * or steps. Comments in Gherkin are usually marked with a hashtag (#) and
+   * are ignored when the tests are executed. A "Note" can be useful for
+   * giving context or explaining the rationale behind a certain test scenario,
+   * making it easier for others to understand the purpose and scope of the test.
+   */
+  note(_: string): When {
+    return When._internal(this.bdd, _, _Variation.note);
+  }
 
-    code(code: CodeRun): _ThenCode {
-        return new _ThenCode(this.bdd, code);
-    }
+  code(code: CodeRun): _ThenCode {
+    return new _ThenCode(this.bdd, code);
+  }
 
-    run(code: CodeRun): void {
-        new _Run().run(this.bdd, code);
-    }
+  run(code: CodeRun): void {
+    new _Run().run(this.bdd, code);
+  }
 
-    testRun(code: CodeRun, reporter: BddReporter): BDD {
-        new _TestRun(code, reporter).run(this.bdd);
-        return this.bdd;
-    }
+  testRun(code: CodeRun, reporter: BddReporter): BDD {
+    new _TestRun(code, reporter).run(this.bdd);
+    return this.bdd;
+  }
 }
 
 export class TableTerm extends Term {
-    tableName: string;
-    rows: Row[] = [];
+  tableName: string;
+  rows: Row[] = [];
 
-    constructor(bdd: BDD, tableName: string) {
-        super(bdd, '', _Variation.term);
-        this.tableName = tableName;
+  constructor(bdd: BDD, tableName: string) {
+    super(bdd, '', _Variation.term);
+    this.tableName = tableName;
+  }
+
+  run(code: CodeRun): void {
+    new _Run().run(this.bdd, code);
+  }
+
+  /**
+   * Here we have something like:
+   * [
+   * { (number;123), (password;ABC) }
+   * { (number;456), (password;XYZ) }
+   * ]
+   */
+  formatTable(config: Config): string {
+    let sizes: { [key: string]: number } = {};
+    for (let _row of this.rows) {
+      for (let value of _row.values) {
+        let maxValue1: number | undefined = sizes[value.name];
+        let maxValue2: number = Math.max(value.name.length, value.toString(config).length);
+        let maxValue: number = (maxValue1 === undefined) ? maxValue2 : Math.max(maxValue1, maxValue2);
+
+        sizes[value.name] = maxValue;
+      }
     }
 
-    run(code: CodeRun): void {
-        new _Run().run(this.bdd, code);
-    }
+    let spaces: string = config.spaces;
+    let space: string = config.space;
+    let endOfLineChar: string = config.endOfLineChar;
+    let tableDivider: string = config.tableDivider;
 
-    /**
-     * Here we have something like:
-     * [
-     * { (number;123), (password;ABC) }
-     * { (number;456), (password;XYZ) }
-     * ]
-     */
-    formatTable(config: Config): string {
-        let sizes: { [key: string]: number } = {};
-        for (let _row of this.rows) {
-            for (let value of _row.values) {
-                let maxValue1: number | undefined = sizes[value.name];
-                let maxValue2: number = Math.max(value.name.length, value.toString(config).length);
-                let maxValue: number = (maxValue1 === undefined) ? maxValue2 : Math.max(maxValue1, maxValue2);
+    let rightAlignPadding: string = spaces +
+      spaces +
+      spaces +
+      ((config.rightAlignKeywords) ? config.padChar.repeat(4) : '');
 
-                sizes[value.name] = maxValue;
-            }
-        }
+    let header: string = rightAlignPadding +
+      `${tableDivider}${space}` +
+      this.rows[0].values.map(value => {
+        let length: number = sizes[value.name] ?? 50;
+        return value.name.padEnd(length, space);
+      }).join(`${space}${tableDivider}${space}`) +
+      `${space}${tableDivider}`;
 
-        let spaces: string = config.spaces;
-        let space: string = config.space;
-        let endOfLineChar: string = config.endOfLineChar;
-        let tableDivider: string = config.tableDivider;
+    let rowsStr: string[] = this.rows.map(row => {
+      return rightAlignPadding +
+        `${tableDivider}${space}` +
+        row.values.map(value => {
+          let length: number = sizes[value.name] ?? 50;
+          return value.toString(config).padEnd(length, space);
+        }).join(`${space}${tableDivider}${space}`) +
+        `${space}${tableDivider}`;
+    });
 
-        let rightAlignPadding: string = spaces +
-            spaces +
-            spaces +
-            ((config.rightAlignKeywords) ? config.padChar.repeat(4) : '');
+    let result: string = `${header}${endOfLineChar}` +
+      `${rowsStr.join(endOfLineChar)}`;
 
-        let header: string = rightAlignPadding +
-            `${tableDivider}${space}` +
-            this.rows[0].values.map(value => {
-                let length: number = sizes[value.name] ?? 50;
-                return value.name.padEnd(length, space);
-            }).join(`${space}${tableDivider}${space}`) +
-            `${space}${tableDivider}`;
+    return result;
+  }
 
-        let rowsStr: string[] = this.rows.map(row => {
-            return rightAlignPadding +
-                `${tableDivider}${space}` +
-                row.values.map(value => {
-                    let length: number = sizes[value.name] ?? 50;
-                    return value.toString(config).padEnd(length, space);
-                }).join(`${space}${tableDivider}${space}`) +
-                `${space}${tableDivider}`;
-        });
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  spaces(config: Config): string {
+    return '';
+  }
 
-        let result: string = `${header}${endOfLineChar}` +
-            `${rowsStr.join(endOfLineChar)}`;
+  keyword(config: Config): string {
+    return config.keywords.table;
+  }
 
-        return result;
-    }
+  keywordPrefix(config: Config): string {
+    return config.keywordPrefix.table;
+  }
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    spaces(config: Config): string {
-        return '';
-    }
+  keywordSuffix(config: Config): string {
+    return config.keywordSuffix.table;
+  }
 
-    keyword(config: Config): string {
-        return config.keywords.table;
-    }
+  prefix(config: Config): string {
+    return config.prefix.table;
+  }
 
-    keywordPrefix(config: Config): string {
-        return config.keywordPrefix.table;
-    }
+  suffix(config: Config): string {
+    return config.suffix.table;
+  }
 
-    keywordSuffix(config: Config): string {
-        return config.keywordSuffix.table;
-    }
-
-    prefix(config: Config): string {
-        return config.prefix.table;
-    }
-
-    suffix(config: Config): string {
-        return config.suffix.table;
-    }
-
-    toString(config: Config = Config._default): string {
-        return this.keywordPrefix(config) +
-            this.keyword(config) +
-            this.keywordSuffix(config) +
-            this.prefix(config) +
-            this.formatTable(config) +
-            this.suffix(config);
-    }
+  toString(config: Config = Config._default): string {
+    return this.keywordPrefix(config) +
+      this.keyword(config) +
+      this.keywordSuffix(config) +
+      this.prefix(config) +
+      this.formatTable(config) +
+      this.suffix(config);
+  }
 }
 
 class Example extends Term {
 
-    // Rows is an array of Set objects containing values.
-    rows: Set<Val>[] = [];
+  // Rows is an array of Set objects containing values.
+  rows: Set<Val>[] = [];
 
-    constructor(
-        bdd: BDD,
-        v1: Val,
-        v2?: Val,
-        v3?: Val,
-        v4?: Val,
-        v5?: Val,
-        v6?: Val,
-        v7?: Val,
-        v8?: Val,
-        v9?: Val,
-        v10?: Val,
-        v11?: Val,
-        v12?: Val,
-        v13?: Val,
-        v14?: Val,
-        v15?: Val,
-    ) {
-        super(bdd, '', _Variation.term);
-        const set =
-            new Set([v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15]
-                .filter(v => (v !== undefined) && (v !== null))) as Set<Val>;
-        this.rows.push(set);
-    }
+  constructor(
+    bdd: BDD,
+    v1: Val,
+    v2?: Val,
+    v3?: Val,
+    v4?: Val,
+    v5?: Val,
+    v6?: Val,
+    v7?: Val,
+    v8?: Val,
+    v9?: Val,
+    v10?: Val,
+    v11?: Val,
+    v12?: Val,
+    v13?: Val,
+    v14?: Val,
+    v15?: Val,
+  ) {
+    super(bdd, '', _Variation.term);
+    const set =
+      new Set([v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15]
+        .filter(v => (v !== undefined) && (v !== null))) as Set<Val>;
+    this.rows.push(set);
+  }
 
-    run(code: CodeRun): void {
-        new _Run().run(this.bdd, code);
-    }
+  run(code: CodeRun): void {
+    new _Run().run(this.bdd, code);
+  }
 
-    /**
-     * Here we have something like:
-     * [
-     * { (number;123), (password;ABC) }
-     * { (number;456), (password;XYZ) }
-     * ]
-     */
-    formatExampleTable(config: Config): string {
-        let sizes: { [key: string]: number } = {};
+  /**
+   * Here we have something like:
+   * [
+   * { (number;123), (password;ABC) }
+   * { (number;456), (password;XYZ) }
+   * ]
+   */
+  formatExampleTable(config: Config): string {
+    let sizes: { [key: string]: number } = {};
 
-        this.rows.forEach(row => {
-            row.forEach(value => {
-                let maxValue1 = sizes[value.name];
-                let maxValue2 = Math.max(value.name.length, value.toString(config).length);
-                let maxValue = (maxValue1 === undefined) ? maxValue2 : Math.max(maxValue1, maxValue2);
-                sizes[value.name] = maxValue;
-            });
-        });
+    this.rows.forEach(row => {
+      row.forEach(value => {
+        let maxValue1 = sizes[value.name];
+        let maxValue2 = Math.max(value.name.length, value.toString(config).length);
+        let maxValue = (maxValue1 === undefined) ? maxValue2 : Math.max(maxValue1, maxValue2);
+        sizes[value.name] = maxValue;
+      });
+    });
 
-        const {spaces, space, endOfLineChar, tableDivider, padChar, rightAlignKeywords} = config;
-        const rightAlignPadding = spaces + spaces + spaces + (rightAlignKeywords ? padChar.repeat(4) : '');
+    const {spaces, space, endOfLineChar, tableDivider, padChar, rightAlignKeywords} = config;
+    const rightAlignPadding = spaces + spaces + spaces + (rightAlignKeywords ? padChar.repeat(4) : '');
 
-        const header = rightAlignPadding + tableDivider + space +
-            Array.from(this.rows.values().next().value as Set<Val>).map((value: Val) => {
-                const length = sizes[value.name] ?? 50;
-                return value.name.padEnd(length, space);
-            }).join(space + tableDivider + space) + space + tableDivider;
+    const header = rightAlignPadding + tableDivider + space +
+      Array.from(this.rows.values().next().value as Set<Val>).map((value: Val) => {
+        const length = sizes[value.name] ?? 50;
+        return value.name.padEnd(length, space);
+      }).join(space + tableDivider + space) + space + tableDivider;
 
-        const rowsStr = this.rows.map((row) => {
-            return rightAlignPadding + tableDivider + space +
-                Array.from(row).map((value: Val) => {
-                    const length = sizes[value.name] ?? 50;
-                    return value.toString(config).padEnd(length, space);
-                }).join(space + tableDivider + space) + space + tableDivider;
-        });
+    const rowsStr = this.rows.map((row) => {
+      return rightAlignPadding + tableDivider + space +
+        Array.from(row).map((value: Val) => {
+          const length = sizes[value.name] ?? 50;
+          return value.toString(config).padEnd(length, space);
+        }).join(space + tableDivider + space) + space + tableDivider;
+    });
 
-        return header + endOfLineChar + rowsStr.join(endOfLineChar);
-    }
+    return header + endOfLineChar + rowsStr.join(endOfLineChar);
+  }
 
-    spaces(config: Config): string {
-        return config.spaces + config.spaces;
-    }
+  spaces(config: Config): string {
+    return config.spaces + config.spaces;
+  }
 
-    keyword(config: Config): string {
-        return this._keywordVariation(config) ?? config.keywords.examples;
-    }
+  keyword(config: Config): string {
+    return this._keywordVariation(config) ?? config.keywords.examples;
+  }
 
-    keywordPrefix(config: Config): string {
-        return this._keywordPrefixVariation(config) ?? config.keywordPrefix.examples;
-    }
+  keywordPrefix(config: Config): string {
+    return this._keywordPrefixVariation(config) ?? config.keywordPrefix.examples;
+  }
 
-    keywordSuffix(config: Config): string {
-        return this._keywordSuffixVariation(config) ?? config.keywordSuffix.examples;
-    }
+  keywordSuffix(config: Config): string {
+    return this._keywordSuffixVariation(config) ?? config.keywordSuffix.examples;
+  }
 
-    prefix(config: Config): string {
-        return this._prefixVariation(config) ?? config.prefix.examples;
-    }
+  prefix(config: Config): string {
+    return this._prefixVariation(config) ?? config.prefix.examples;
+  }
 
-    suffix(config: Config): string {
-        return this._suffixVariation(config) ?? config.suffix.examples;
-    }
+  suffix(config: Config): string {
+    return this._suffixVariation(config) ?? config.suffix.examples;
+  }
 
-    /**
-     * Examples are used in the context of Scenario Outlines. A Scenario Outline
-     * is a template for multiple tests, and the "Examples" section provides
-     * concrete values to be substituted into the template for each test run.
-     * This approach allows for the specification of multiple scenarios using the
-     * same pattern of action but with different sets of data.
-     *
-     * Here’s how it works:
-     *
-     * Scenario Outline: This is a kind of scenario that is run multiple times
-     * with different data. It includes variables in the Given-When-Then steps,
-     * which are indicated with angle brackets, like <variable>.
-     *
-     * Examples: This keyword introduces a table right below the Scenario Outline.
-     * Each row in this table (except the header) represents a set of values that
-     * will be passed into the Scenario Outline’s variables. The header row
-     * defines the names of these variables.
-     *
-     * For example, if you have a Scenario Outline describing the login process,
-     * you might have variables for username and password. The Examples table
-     * will then list different combinations of usernames and passwords to test
-     * various login scenarios.
-     *
-     * This approach is particularly useful for testing the same feature or
-     * functionality under different conditions and with different inputs,
-     * making your tests more comprehensive and robust. It also keeps your
-     * Gherkin feature files DRY (Don't Repeat Yourself), as you avoid writing
-     * multiple scenarios that differ only in the data they use.
-     *
-     * ```
-     *   Bdd(feature)
-     *       .scenario('Buying and Selling stocks changes the average price.')
-     *       .given('The user has <Quantity> shares of <Ticker> at <At> dollars each.')
-     *       .when('The user <BuyOrSell> <How many> of these stock at <Price> for each share.')
-     *       .then('The number of shares becomes <Quantity> plus/minus <How many>.')
-     *       .and('The average price for the stock becomes <Average Price>.')
-     *       .example(
-     *         val('Ticker', 'IBM'),
-     *         val('Quantity', 10),
-     *         val('At', 100.00),
-     *         val('BuyOrSell', BuyOrSell.buy),
-     *         val('How many', 2),
-     *         val('Price', 50.00),
-     *         val('Average Price', 91.67),
-     *       )
-     *       .example(
-     *         val('Ticker', 'IBM'),
-     *         val('Quantity', 8),
-     *         val('At', 200.00),
-     *         val('BuyOrSell', BuyOrSell.sell),
-     *         val('How many', 3),
-     *         val('Price', 30.00),
-     *         val('Average Price', 302.00),
-     *       )
-     *       .run((ctx) async { ...
-     * ```
-     */
-    example(
-        v1: Val,
-        v2?: Val,
-        v3?: Val,
-        v4?: Val,
-        v5?: Val,
-        v6?: Val,
-        v7?: Val,
-        v8?: Val,
-        v9?: Val,
-        v10?: Val,
-        v11?: Val,
-        v12?: Val,
-        v13?: Val,
-        v14?: Val,
-        v15?: Val,
-    ): Example {
-        const set = new Set([v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15]
-            .filter(v => (v !== undefined) && (v !== null))) as Set<Val>;
-        this.rows.push(set);
-        return this;
-    }
+  /**
+   * Examples are used in the context of Scenario Outlines. A Scenario Outline
+   * is a template for multiple tests, and the "Examples" section provides
+   * concrete values to be substituted into the template for each test run.
+   * This approach allows for the specification of multiple scenarios using the
+   * same pattern of action but with different sets of data.
+   *
+   * Here’s how it works:
+   *
+   * Scenario Outline: This is a kind of scenario that is run multiple times
+   * with different data. It includes variables in the Given-When-Then steps,
+   * which are indicated with angle brackets, like <variable>.
+   *
+   * Examples: This keyword introduces a table right below the Scenario Outline.
+   * Each row in this table (except the header) represents a set of values that
+   * will be passed into the Scenario Outline’s variables. The header row
+   * defines the names of these variables.
+   *
+   * For example, if you have a Scenario Outline describing the login process,
+   * you might have variables for username and password. The Examples table
+   * will then list different combinations of usernames and passwords to test
+   * various login scenarios.
+   *
+   * This approach is particularly useful for testing the same feature or
+   * functionality under different conditions and with different inputs,
+   * making your tests more comprehensive and robust. It also keeps your
+   * Gherkin feature files DRY (Don't Repeat Yourself), as you avoid writing
+   * multiple scenarios that differ only in the data they use.
+   *
+   * ```
+   *   Bdd(feature)
+   *       .scenario('Buying and Selling stocks changes the average price.')
+   *       .given('The user has <Quantity> shares of <Ticker> at <At> dollars each.')
+   *       .when('The user <BuyOrSell> <How many> of these stock at <Price> for each share.')
+   *       .then('The number of shares becomes <Quantity> plus/minus <How many>.')
+   *       .and('The average price for the stock becomes <Average Price>.')
+   *       .example(
+   *         val('Ticker', 'IBM'),
+   *         val('Quantity', 10),
+   *         val('At', 100.00),
+   *         val('BuyOrSell', BuyOrSell.buy),
+   *         val('How many', 2),
+   *         val('Price', 50.00),
+   *         val('Average Price', 91.67),
+   *       )
+   *       .example(
+   *         val('Ticker', 'IBM'),
+   *         val('Quantity', 8),
+   *         val('At', 200.00),
+   *         val('BuyOrSell', BuyOrSell.sell),
+   *         val('How many', 3),
+   *         val('Price', 30.00),
+   *         val('Average Price', 302.00),
+   *       )
+   *       .run((ctx) async { ...
+   * ```
+   */
+  example(
+    v1: Val,
+    v2?: Val,
+    v3?: Val,
+    v4?: Val,
+    v5?: Val,
+    v6?: Val,
+    v7?: Val,
+    v8?: Val,
+    v9?: Val,
+    v10?: Val,
+    v11?: Val,
+    v12?: Val,
+    v13?: Val,
+    v14?: Val,
+    v15?: Val,
+  ): Example {
+    const set = new Set([v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15]
+      .filter(v => (v !== undefined) && (v !== null))) as Set<Val>;
+    this.rows.push(set);
+    return this;
+  }
 
-    // Visible for testing.
-    testRun(code: CodeRun, reporter: BddReporter): BDD {
-        new _TestRun(code, reporter).run(this.bdd);
-        return this.bdd;
-    }
+  // Visible for testing.
+  testRun(code: CodeRun, reporter: BddReporter): BDD {
+    new _TestRun(code, reporter).run(this.bdd);
+    return this.bdd;
+  }
 
-    // Examples have a special toString treatment.
-    toString(config: Config = Config._default): string {
-        return this.keywordPrefix(config) +
-            this.spaces(config) +
-            this.keyword(config) +
-            this.keywordSuffix(config) +
-            ' ' +
-            this.prefix(config) +
-            config.endOfLineChar +
-            this.formatExampleTable(config) +
-            this.suffix(config);
-    }
+  // Examples have a special toString treatment.
+  toString(config: Config = Config._default): string {
+    return this.keywordPrefix(config) +
+      this.spaces(config) +
+      this.keyword(config) +
+      this.keywordSuffix(config) +
+      ' ' +
+      this.prefix(config) +
+      config.endOfLineChar +
+      this.formatExampleTable(config) +
+      this.suffix(config);
+  }
 }
 
 class GivenTable extends TableTerm {
-    constructor(
-        bdd: BDD,
-        tableName: string,
-        row1: Row, row2?: Row, row3?: Row, row4?: Row, row5?: Row, row6?: Row, row7?: Row, row8?: Row, row9?: Row, row10?: Row, row11?: Row, row12?: Row, row13?: Row, row14?: Row, row15?: Row, row16?: Row,
-    ) {
-        super(bdd, tableName);
+  constructor(
+    bdd: BDD,
+    tableName: string,
+    row1: Row, row2?: Row, row3?: Row, row4?: Row, row5?: Row, row6?: Row, row7?: Row, row8?: Row, row9?: Row, row10?: Row, row11?: Row, row12?: Row, row13?: Row, row14?: Row, row15?: Row, row16?: Row,
+  ) {
+    super(bdd, tableName);
 
-        this.rows.push(...[
-            row1, row2, row3, row4, row5, row6, row7, row8, row9, row10, row11, row12, row13, row14, row15, row16,
-        ].filter(row => (row !== null) && (row !== undefined)) as Row[]);
-    }
+    this.rows.push(...[
+      row1, row2, row3, row4, row5, row6, row7, row8, row9, row10, row11, row12, row13, row14, row15, row16,
+    ].filter(row => (row !== null) && (row !== undefined)) as Row[]);
+  }
 
-    /**
-     * This keyword is used to extend a 'Given', 'When', or 'Then' step.
-     * It allows you to add multiple conditions or actions in the same step
-     * without having to repeat the 'Given', 'When', or 'Then' keyword.
-     * For example, "And I should see a confirmation message" could follow
-     * a 'Then' step to further specify the expected outcomes.
-     */
-    and(_: string): Given {
-        return new Given(this.bdd, _, _Variation.and);
-    }
+  /**
+   * This keyword is used to extend a 'Given', 'When', or 'Then' step.
+   * It allows you to add multiple conditions or actions in the same step
+   * without having to repeat the 'Given', 'When', or 'Then' keyword.
+   * For example, "And I should see a confirmation message" could follow
+   * a 'Then' step to further specify the expected outcomes.
+   */
+  and(_: string): Given {
+    return new Given(this.bdd, _, _Variation.and);
+  }
 
-    /**
-     * This keyword is used similarly to "And," but it is typically used for
-     * negative conditions or to express a contrast with the previous step.
-     * It's a way to extend a "Given," "When," or "Then" step with an additional
-     * condition that contrasts with what was previously stated. For example,
-     * after a "Then" step, you might have "But I should not be logged out."
-     * This helps in creating more comprehensive scenarios by covering both
-     * what should happen and what should not happen under certain conditions.
-     */
-    but(_: string): Given {
-        return new Given(this.bdd, _, _Variation.but);
-    }
+  /**
+   * This keyword is used similarly to "And," but it is typically used for
+   * negative conditions or to express a contrast with the previous step.
+   * It's a way to extend a "Given," "When," or "Then" step with an additional
+   * condition that contrasts with what was previously stated. For example,
+   * after a "Then" step, you might have "But I should not be logged out."
+   * This helps in creating more comprehensive scenarios by covering both
+   * what should happen and what should not happen under certain conditions.
+   */
+  but(_: string): Given {
+    return new Given(this.bdd, _, _Variation.but);
+  }
 
-    /**
-     * Often used informally in comments within a Gherkin document to provide
-     * additional information, clarifications, or explanations about the scenario
-     * or steps. Comments in Gherkin are usually marked with a hashtag (#) and
-     * are ignored when the tests are executed. A "Note" can be useful for
-     * giving context or explaining the rationale behind a certain test scenario,
-     * making it easier for others to understand the purpose and scope of the test.
-     */
-    note(_: string): Given {
-        return new Given(this.bdd, _, _Variation.note);
-    }
+  /**
+   * Often used informally in comments within a Gherkin document to provide
+   * additional information, clarifications, or explanations about the scenario
+   * or steps. Comments in Gherkin are usually marked with a hashtag (#) and
+   * are ignored when the tests are executed. A "Note" can be useful for
+   * giving context or explaining the rationale behind a certain test scenario,
+   * making it easier for others to understand the purpose and scope of the test.
+   */
+  note(_: string): Given {
+    return new Given(this.bdd, _, _Variation.note);
+  }
 
-    /**
-     * This keyword indicates the specific action taken by the user or the system.
-     * It's the trigger for the behavior that you're specifying. For instance,
-     * "When I click the 'Submit' button" describes the action taken after the
-     * initial context is set by the 'Given' step.
-     */
-    when(_: string): When {
-        return new When(this.bdd, _);
-    }
+  /**
+   * This keyword indicates the specific action taken by the user or the system.
+   * It's the trigger for the behavior that you're specifying. For instance,
+   * "When I click the 'Submit' button" describes the action taken after the
+   * initial context is set by the 'Given' step.
+   */
+  when(_: string): When {
+    return new When(this.bdd, _);
+  }
 
-    code(code: CodeRun): _GivenCode {
-        return new _GivenCode(this.bdd, code);
-    }
+  code(code: CodeRun): _GivenCode {
+    return new _GivenCode(this.bdd, code);
+  }
 
-    toString(config: Config = Config._default): string {
-        return super.toString(config);
-    }
+  toString(config: Config = Config._default): string {
+    return super.toString(config);
+  }
 }
 
 class WhenTable extends TableTerm {
-    // Constructor with optional parameters
-    constructor(
-        bdd: BDD,
-        tableName: string,
-        row1: Row, row2?: Row, row3?: Row, row4?: Row, row5?: Row, row6?: Row, row7?: Row, row8?: Row, row9?: Row, row10?: Row, row11?: Row, row12?: Row, row13?: Row, row14?: Row, row15?: Row, row16?: Row,
-    ) {
-        super(bdd, tableName);
+  // Constructor with optional parameters
+  constructor(
+    bdd: BDD,
+    tableName: string,
+    row1: Row, row2?: Row, row3?: Row, row4?: Row, row5?: Row, row6?: Row, row7?: Row, row8?: Row, row9?: Row, row10?: Row, row11?: Row, row12?: Row, row13?: Row, row14?: Row, row15?: Row, row16?: Row,
+  ) {
+    super(bdd, tableName);
 
-        this.rows.push(...[
-            row1, row2, row3, row4, row5, row6, row7, row8, row9, row10, row11, row12, row13, row14, row15, row16,
-        ].filter(row => (row !== null) && (row !== undefined)) as Row[]);
-    }
+    this.rows.push(...[
+      row1, row2, row3, row4, row5, row6, row7, row8, row9, row10, row11, row12, row13, row14, row15, row16,
+    ].filter(row => (row !== null) && (row !== undefined)) as Row[]);
+  }
 
-    /**
-     * This keyword is used to extend a 'Given', 'When', or 'Then' step.
-     * It allows you to add multiple conditions or actions in the same step
-     * without having to repeat the 'Given', 'When', or 'Then' keyword.
-     * For example, "And I should see a confirmation message" could follow
-     * a 'Then' step to further specify the expected outcomes.
-     */
-    and(_: string): When {
-        return When._internal(this.bdd, _, _Variation.and);
-    }
+  /**
+   * This keyword is used to extend a 'Given', 'When', or 'Then' step.
+   * It allows you to add multiple conditions or actions in the same step
+   * without having to repeat the 'Given', 'When', or 'Then' keyword.
+   * For example, "And I should see a confirmation message" could follow
+   * a 'Then' step to further specify the expected outcomes.
+   */
+  and(_: string): When {
+    return When._internal(this.bdd, _, _Variation.and);
+  }
 
-    /**
-     * This keyword is used similarly to "And," but it is typically used for
-     * negative conditions or to express a contrast with the previous step.
-     * It's a way to extend a "Given," "When," or "Then" step with an additional
-     * condition that contrasts with what was previously stated. For example,
-     * after a "Then" step, you might have "But I should not be logged out."
-     * This helps in creating more comprehensive scenarios by covering both
-     * what should happen and what should not happen under certain conditions.
-     */
-    but(_: string): When {
-        return When._internal(this.bdd, _, _Variation.but);
-    }
+  /**
+   * This keyword is used similarly to "And," but it is typically used for
+   * negative conditions or to express a contrast with the previous step.
+   * It's a way to extend a "Given," "When," or "Then" step with an additional
+   * condition that contrasts with what was previously stated. For example,
+   * after a "Then" step, you might have "But I should not be logged out."
+   * This helps in creating more comprehensive scenarios by covering both
+   * what should happen and what should not happen under certain conditions.
+   */
+  but(_: string): When {
+    return When._internal(this.bdd, _, _Variation.but);
+  }
 
-    /**
-     * Often used informally in comments within a Gherkin document to provide
-     * additional information, clarifications, or explanations about the scenario
-     * or steps. Comments in Gherkin are usually marked with a hashtag (#) and
-     * are ignored when the tests are executed. A "Note" can be useful for
-     * giving context or explaining the rationale behind a certain test scenario,
-     * making it easier for others to understand the purpose and scope of the test.
-     */
-    note(_: string): When {
-        return When._internal(this.bdd, _, _Variation.note);
-    }
+  /**
+   * Often used informally in comments within a Gherkin document to provide
+   * additional information, clarifications, or explanations about the scenario
+   * or steps. Comments in Gherkin are usually marked with a hashtag (#) and
+   * are ignored when the tests are executed. A "Note" can be useful for
+   * giving context or explaining the rationale behind a certain test scenario,
+   * making it easier for others to understand the purpose and scope of the test.
+   */
+  note(_: string): When {
+    return When._internal(this.bdd, _, _Variation.note);
+  }
 
-    /**
-     * This keyword is used to describe the expected outcome or result after the
-     * 'When' step is executed. It's used to assert that a certain outcome should
-     * occur, which helps to validate whether the system behaves as expected.
-     * An example is, "Then I should be redirected to the dashboard".
-     */
-    then(_: string): Then {
-        return new Then(this.bdd, _);
-    }
+  /**
+   * This keyword is used to describe the expected outcome or result after the
+   * 'When' step is executed. It's used to assert that a certain outcome should
+   * occur, which helps to validate whether the system behaves as expected.
+   * An example is, "Then I should be redirected to the dashboard".
+   */
+  then(_: string): Then {
+    return new Then(this.bdd, _);
+  }
 
-    code(code: CodeRun): _WhenCode {
-        return new _WhenCode(this.bdd, code);
-    }
+  code(code: CodeRun): _WhenCode {
+    return new _WhenCode(this.bdd, code);
+  }
 
-    // Overriding the toString method
-    toString(config: Config = Config._default): string {
-        return super.toString(config);
-    }
+  // Overriding the toString method
+  toString(config: Config = Config._default): string {
+    return super.toString(config);
+  }
 }
 
 class ThenTable extends TableTerm {
 
-    constructor(
-        bdd: BDD,
-        tableName: string,
-        row1: Row, row2?: Row, row3?: Row, row4?: Row, row5?: Row, row6?: Row, row7?: Row, row8?: Row, row9?: Row, row10?: Row, row11?: Row, row12?: Row, row13?: Row, row14?: Row, row15?: Row, row16?: Row,
-    ) {
-        super(bdd, tableName);
+  constructor(
+    bdd: BDD,
+    tableName: string,
+    row1: Row, row2?: Row, row3?: Row, row4?: Row, row5?: Row, row6?: Row, row7?: Row, row8?: Row, row9?: Row, row10?: Row, row11?: Row, row12?: Row, row13?: Row, row14?: Row, row15?: Row, row16?: Row,
+  ) {
+    super(bdd, tableName);
 
-        this.rows.push(...[
-            row1, row2, row3, row4, row5, row6, row7, row8, row9, row10, row11, row12, row13, row14, row15, row16,
-        ].filter(row => (row !== null) && (row !== undefined)) as Row[]);
-    }
+    this.rows.push(...[
+      row1, row2, row3, row4, row5, row6, row7, row8, row9, row10, row11, row12, row13, row14, row15, row16,
+    ].filter(row => (row !== null) && (row !== undefined)) as Row[]);
+  }
 
-    /**
-     * This keyword is used to extend a 'Given', 'When', or 'Then' step.
-     * It allows you to add multiple conditions or actions in the same step
-     * without having to repeat the 'Given', 'When', or 'Then' keyword.
-     * For example, "And I should see a confirmation message" could follow
-     * a 'Then' step to further specify the expected outcomes.
-     */
-    and(_: string): Then {
-        return new Then(this.bdd, _, _Variation.and);
-    }
+  /**
+   * This keyword is used to extend a 'Given', 'When', or 'Then' step.
+   * It allows you to add multiple conditions or actions in the same step
+   * without having to repeat the 'Given', 'When', or 'Then' keyword.
+   * For example, "And I should see a confirmation message" could follow
+   * a 'Then' step to further specify the expected outcomes.
+   */
+  and(_: string): Then {
+    return new Then(this.bdd, _, _Variation.and);
+  }
 
-    /**
-     * This keyword is used similarly to "And," but it is typically used for
-     * negative conditions or to express a contrast with the previous step.
-     * It's a way to extend a "Given," "When," or "Then" step with an additional
-     * condition that contrasts with what was previously stated. For example,
-     * after a "Then" step, you might have "But I should not be logged out."
-     * This helps in creating more comprehensive scenarios by covering both
-     * what should happen and what should not happen under certain conditions.
-     */
-    but(_: string): Then {
-        return new Then(this.bdd, _, _Variation.but);
-    }
+  /**
+   * This keyword is used similarly to "And," but it is typically used for
+   * negative conditions or to express a contrast with the previous step.
+   * It's a way to extend a "Given," "When," or "Then" step with an additional
+   * condition that contrasts with what was previously stated. For example,
+   * after a "Then" step, you might have "But I should not be logged out."
+   * This helps in creating more comprehensive scenarios by covering both
+   * what should happen and what should not happen under certain conditions.
+   */
+  but(_: string): Then {
+    return new Then(this.bdd, _, _Variation.but);
+  }
 
-    /**
-     * Often used informally in comments within a Gherkin document to provide
-     * additional information, clarifications, or explanations about the scenario
-     * or steps. Comments in Gherkin are usually marked with a hashtag (#) and
-     * are ignored when the tests are executed. A "Note" can be useful for
-     * giving context or explaining the rationale behind a certain test scenario,
-     * making it easier for others to understand the purpose and scope of the test.
-     */
-    note(_: string): Then {
-        return new Then(this.bdd, _, _Variation.note);
-    }
+  /**
+   * Often used informally in comments within a Gherkin document to provide
+   * additional information, clarifications, or explanations about the scenario
+   * or steps. Comments in Gherkin are usually marked with a hashtag (#) and
+   * are ignored when the tests are executed. A "Note" can be useful for
+   * giving context or explaining the rationale behind a certain test scenario,
+   * making it easier for others to understand the purpose and scope of the test.
+   */
+  note(_: string): Then {
+    return new Then(this.bdd, _, _Variation.note);
+  }
 
-    /**
-     * Examples are used in the context of Scenario Outlines. A Scenario Outline
-     * is a template for multiple tests, and the "Examples" section provides
-     * concrete values to be substituted into the template for each test run.
-     * This approach allows for the specification of multiple scenarios using the
-     * same pattern of action but with different sets of data.
-     *
-     * Here’s how it works:
-     *
-     * Scenario Outline: This is a kind of scenario that is run multiple times
-     * with different data. It includes variables in the Given-When-Then steps,
-     * which are indicated with angle brackets, like <variable>.
-     *
-     * Examples: This keyword introduces a table right below the Scenario Outline.
-     * Each row in this table (except the header) represents a set of values that
-     * will be passed into the Scenario Outline’s variables. The header row
-     * defines the names of these variables.
-     *
-     * For example, if you have a Scenario Outline describing the login process,
-     * you might have variables for username and password. The Examples table
-     * will then list different combinations of usernames and passwords to test
-     * various login scenarios.
-     *
-     * This approach is particularly useful for testing the same feature or
-     * functionality under different conditions and with different inputs,
-     * making your tests more comprehensive and robust. It also keeps your
-     * Gherkin feature files DRY (Don't Repeat Yourself), as you avoid writing
-     * multiple scenarios that differ only in the data they use.
-     *
-     * ```
-     *   Bdd(feature)
-     *       .scenario('Buying and Selling stocks changes the average price.')
-     *       .given('The user has <Quantity> shares of <Ticker> at <At> dollars each.')
-     *       .when('The user <BuyOrSell> <How many> of these stock at <Price> for each share.')
-     *       .then('The number of shares becomes <Quantity> plus/minus <How many>.')
-     *       .and('The average price for the stock becomes <Average Price>.')
-     *       .example(
-     *         val('Ticker', 'IBM'),
-     *         val('Quantity', 10),
-     *         val('At', 100.00),
-     *         val('BuyOrSell', BuyOrSell.buy),
-     *         val('How many', 2),
-     *         val('Price', 50.00),
-     *         val('Average Price', 91.67),
-     *       )
-     *       .example(
-     *         val('Ticker', 'IBM'),
-     *         val('Quantity', 8),
-     *         val('At', 200.00),
-     *         val('BuyOrSell', BuyOrSell.sell),
-     *         val('How many', 3),
-     *         val('Price', 30.00),
-     *         val('Average Price', 302.00),
-     *       )
-     *       .run((ctx) async { ...
-     * ```
-     */
-    example(v1: Val, v2?: Val, v3?: Val, v4?: Val, v5?: Val, v6?: Val, v7?: Val, v8?: Val, v9?: Val, v10?: Val, v11?: Val, v12?: Val, v13?: Val, v14?: Val, v15?: Val): Example {
-        return new Example(this.bdd, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15);
-    }
+  /**
+   * Examples are used in the context of Scenario Outlines. A Scenario Outline
+   * is a template for multiple tests, and the "Examples" section provides
+   * concrete values to be substituted into the template for each test run.
+   * This approach allows for the specification of multiple scenarios using the
+   * same pattern of action but with different sets of data.
+   *
+   * Here’s how it works:
+   *
+   * Scenario Outline: This is a kind of scenario that is run multiple times
+   * with different data. It includes variables in the Given-When-Then steps,
+   * which are indicated with angle brackets, like <variable>.
+   *
+   * Examples: This keyword introduces a table right below the Scenario Outline.
+   * Each row in this table (except the header) represents a set of values that
+   * will be passed into the Scenario Outline’s variables. The header row
+   * defines the names of these variables.
+   *
+   * For example, if you have a Scenario Outline describing the login process,
+   * you might have variables for username and password. The Examples table
+   * will then list different combinations of usernames and passwords to test
+   * various login scenarios.
+   *
+   * This approach is particularly useful for testing the same feature or
+   * functionality under different conditions and with different inputs,
+   * making your tests more comprehensive and robust. It also keeps your
+   * Gherkin feature files DRY (Don't Repeat Yourself), as you avoid writing
+   * multiple scenarios that differ only in the data they use.
+   *
+   * ```
+   *   Bdd(feature)
+   *       .scenario('Buying and Selling stocks changes the average price.')
+   *       .given('The user has <Quantity> shares of <Ticker> at <At> dollars each.')
+   *       .when('The user <BuyOrSell> <How many> of these stock at <Price> for each share.')
+   *       .then('The number of shares becomes <Quantity> plus/minus <How many>.')
+   *       .and('The average price for the stock becomes <Average Price>.')
+   *       .example(
+   *         val('Ticker', 'IBM'),
+   *         val('Quantity', 10),
+   *         val('At', 100.00),
+   *         val('BuyOrSell', BuyOrSell.buy),
+   *         val('How many', 2),
+   *         val('Price', 50.00),
+   *         val('Average Price', 91.67),
+   *       )
+   *       .example(
+   *         val('Ticker', 'IBM'),
+   *         val('Quantity', 8),
+   *         val('At', 200.00),
+   *         val('BuyOrSell', BuyOrSell.sell),
+   *         val('How many', 3),
+   *         val('Price', 30.00),
+   *         val('Average Price', 302.00),
+   *       )
+   *       .run((ctx) async { ...
+   * ```
+   */
+  example(v1: Val, v2?: Val, v3?: Val, v4?: Val, v5?: Val, v6?: Val, v7?: Val, v8?: Val, v9?: Val, v10?: Val, v11?: Val, v12?: Val, v13?: Val, v14?: Val, v15?: Val): Example {
+    return new Example(this.bdd, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15);
+  }
 
-    code(code: CodeRun): _ThenCode {
-        return new _ThenCode(this.bdd, code);
-    }
+  code(code: CodeRun): _ThenCode {
+    return new _ThenCode(this.bdd, code);
+  }
 
-    toString(config: Config = Config._default): string {
-        return super.toString(config);
-    }
+  toString(config: Config = Config._default): string {
+    return super.toString(config);
+  }
 
-    run(code: CodeRun): void {
-        new _Run().run(this.bdd, code);
-    }
+  run(code: CodeRun): void {
+    new _Run().run(this.bdd, code);
+  }
 
-    testRun(code: CodeRun, reporter: BddReporter): BDD {
-        new _TestRun(code, reporter).run(this.bdd);
-        return this.bdd;
-    }
+  testRun(code: CodeRun, reporter: BddReporter): BDD {
+    new _TestRun(code, reporter).run(this.bdd);
+    return this.bdd;
+  }
 }
 
 
@@ -1603,242 +1603,244 @@ type CodeRun = ((ctx: Context) => Promise<void> | void) | undefined;
 
 /** This will run with the global reporter/runInfo. */
 class _Run {
-    run(bdd: BDD, code: CodeRun): void {
+  run(bdd: BDD, code: CodeRun): void {
 
-        // Add the code to the BDD, as a ThenCode.
-        // eslint-disable-next-line no-new
-        new _ThenCode(bdd, code);
+    // Add the code to the BDD, as a ThenCode.
+    // eslint-disable-next-line no-new
+    new _ThenCode(bdd, code);
 
-        BddReporter._reporters.forEach((_reporter) => {
-            _reporter._addBdd(bdd);
-        });
-
-        const numberOfExamples = bdd.numberOfExamples();
-        BddReporter.runInfo.testCount++;
-
-        if (numberOfExamples === 0) {
-            this._runTheTest(bdd, null);
-        } else {
-            for (let i = 0; i < numberOfExamples; i++) {
-                this._runTheTest(bdd, i);
-            }
-        }
-    }
-
-    static readonly red = '\x1B[38;5;9m';
-    static readonly blue = '\x1B[38;5;45m';
-    static readonly yellow = '\x1B[38;5;226m';
-    static readonly grey = '\x1B[38;5;246m';
-    static readonly bold = '\u001b[1m';
-    static readonly italic = '\u001b[3m';
-    static readonly boldItalic = _Run.bold + _Run.italic;
-    static readonly boldOff = '\u001b[22m';
-    static readonly italicOff = '\u001b[23m';
-    static readonly boldItalicOff = _Run.boldOff + _Run.italicOff;
-    static readonly reset = '\u001b[0m';
-
-    static readonly config: Config = new Config({
-        keywords: new Keywords({
-            feature: `${_Run.boldItalic}Feature:${_Run.boldItalicOff}`,
-            scenario: `${_Run.boldItalic}Scenario:${_Run.boldItalicOff}`,
-            scenarioOutline: `${_Run.boldItalic}Scenario Outline:${_Run.boldItalicOff}`,
-            given: `${_Run.boldItalic}Given${_Run.boldItalicOff}`,
-            when: `${_Run.boldItalic}When${_Run.boldItalicOff}`,
-            then: `${_Run.boldItalic}Then${_Run.boldItalicOff}`,
-            and: `${_Run.boldItalic}And${_Run.boldItalicOff}`,
-            but: `${_Run.boldItalic}But${_Run.boldItalicOff}`,
-            comment: `${_Run.boldItalic}#${_Run.boldItalicOff}`,
-            examples: `${_Run.boldItalic}Examples:${_Run.boldItalicOff}`,
-        }),
-        keywordPrefix: new Keywords({
-            feature: '',
-            scenario: '\n',
-            scenarioOutline: '\n',
-            given: '\n',
-            when: '\n',
-            then: '\n',
-            and: '',
-            but: '',
-            comment: _Run.grey,
-            examples: '\n',
-            table: '',
-        }),
-        suffix: new Keywords({
-            feature: '',
-            scenario: '',
-            scenarioOutline: '',
-            given: '',
-            when: '',
-            then: '',
-            and: '',
-            but: '',
-            comment: _Run.blue,
-            examples: '',
-            table: '',
-        }),
+    BddReporter._reporters.forEach((_reporter) => {
+      _reporter._addBdd(bdd);
     });
 
-    subscript(index: number): string {
-        let result = '';
-        const x = index.toString();
-        for (let i = 0; i < x.length; i++) {
-            const char = x[i];
-            result += {
-                '0': '₀',
-                '1': '₁',
-                '2': '₂',
-                '3': '₃',
-                '4': '₄',
-                '5': '₅',
-                '6': '₆',
-                '7': '₇',
-                '8': '₈',
-                '9': '₉',
-            }[char];
-        }
-        return result;
+    const numberOfExamples = bdd.numberOfExamples();
+    BddReporter.runInfo.testCount++;
+
+    if (numberOfExamples === 0) {
+      this._runTheTest(bdd, null);
+    } else {
+      for (let i = 0; i < numberOfExamples; i++) {
+        this._runTheTest(bdd, i);
+      }
     }
+  }
 
-    /**  Returns something like: "4₁₂" */
-    private testCountStr(testCount: number, exampleNumber: number | null): string {
-        return `${testCount}${exampleNumber === null ? '' : this.subscript(exampleNumber + 1)}`;
+  static readonly red = '\x1B[38;5;9m';
+  static readonly blue = '\x1B[38;5;45m';
+  static readonly yellow = '\x1B[38;5;226m';
+  static readonly grey = '\x1B[38;5;246m';
+  static readonly bold = '\u001b[1m';
+  static readonly italic = '\u001b[3m';
+  static readonly boldItalic = _Run.bold + _Run.italic;
+  static readonly boldOff = '\u001b[22m';
+  static readonly italicOff = '\u001b[23m';
+  static readonly boldItalicOff = _Run.boldOff + _Run.italicOff;
+  static readonly reset = '\u001b[0m';
+
+  static readonly config: Config = new Config({
+    keywords: new Keywords({
+      feature: `${_Run.boldItalic}Feature:${_Run.boldItalicOff}`,
+      scenario: `${_Run.boldItalic}Scenario:${_Run.boldItalicOff}`,
+      scenarioOutline: `${_Run.boldItalic}Scenario Outline:${_Run.boldItalicOff}`,
+      given: `${_Run.boldItalic}Given${_Run.boldItalicOff}`,
+      when: `${_Run.boldItalic}When${_Run.boldItalicOff}`,
+      then: `${_Run.boldItalic}Then${_Run.boldItalicOff}`,
+      and: `${_Run.boldItalic}And${_Run.boldItalicOff}`,
+      but: `${_Run.boldItalic}But${_Run.boldItalicOff}`,
+      comment: `${_Run.boldItalic}#${_Run.boldItalicOff}`,
+      examples: `${_Run.boldItalic}Examples:${_Run.boldItalicOff}`,
+    }),
+    keywordPrefix: new Keywords({
+      feature: '',
+      scenario: '\n',
+      scenarioOutline: '\n',
+      given: '\n',
+      when: '\n',
+      then: '\n',
+      and: '',
+      but: '',
+      comment: _Run.grey,
+      examples: '\n',
+      table: '',
+    }),
+    suffix: new Keywords({
+      feature: '',
+      scenario: '',
+      scenarioOutline: '',
+      given: '',
+      when: '',
+      then: '',
+      and: '',
+      but: '',
+      comment: _Run.blue,
+      examples: '',
+      table: '',
+    }),
+  });
+
+  subscript(index: number): string {
+    let result = '';
+    const x = index.toString();
+    for (let i = 0; i < x.length; i++) {
+      const char = x[i];
+      result += {
+        '0': '₀',
+        '1': '₁',
+        '2': '₂',
+        '3': '₃',
+        '4': '₄',
+        '5': '₅',
+        '6': '₆',
+        '7': '₇',
+        '8': '₈',
+        '9': '₉',
+      }[char];
     }
+    return result;
+  }
 
-    /**
-     * If the Bdd has examples, this method will be called once for each example, with
-     * [exampleNumber] starting in 0.
-     *
-     * If the Bdd does NOT have examples, this method will run once, with [exampleNumber] null.
-     */
-    private _runTheTest(bdd: BDD, exampleNumber: number | null): void {
+  /**  Returns something like: "4₁₂" */
+  private testCountStr(testCount: number, exampleNumber: number | null): string {
+    return `${testCount}${exampleNumber === null ? '' : this.subscript(exampleNumber + 1)}`;
+  }
 
-        BddReporter.runInfo.totalTestCount++;
+  /**
+   * If the Bdd has examples, this method will be called once for each example, with
+   * [exampleNumber] starting in 0.
+   *
+   * If the Bdd does NOT have examples, this method will run once, with [exampleNumber] null.
+   */
+  private _runTheTest(bdd: BDD, exampleNumber: number | null): void {
 
-        let currentExecution = 0;
-        const bddStr = bdd.toString(_Run.config, true);
-        const testCount = BddReporter.runInfo.testCount;
+    BddReporter.runInfo.totalTestCount++;
 
-        const _testCountStr = this.testCountStr(testCount, exampleNumber);
-        const _testName = `${_testCountStr} ${bdd.description()}`;
+    let currentExecution = 0;
+    const bddStr = bdd.toString(_Run.config, true);
+    const testCount = BddReporter.runInfo.testCount;
 
-        // Test is skipped.
-        if (bdd._skip) {
-            BddReporter.runInfo.skipCount++;
+    const _testCountStr = this.testCountStr(testCount, exampleNumber);
+    const _testName = `${_testCountStr} ${bdd.description()}`;
 
-            // eslint-disable-next-line jest/no-disabled-tests
-            test.skip(
-                _testName,
-                async () => {
-                },
-            );
-        }
-            //
-        // Test is NOT skipped.
-        else {
+    // Test is skipped.
+    if (bdd._skip) {
+      BddReporter.runInfo.skipCount++;
 
-            // We delegate to Jest to actually run the test.
-            test(
-                //
-                // Test name:
-                _testName,
-                //
-                // Test code:
-                async () => {
-                    currentExecution++;
-
-                    console.log((currentExecution === 1)
-                        ? `\n${this._header(bdd._skip, _testCountStr)}${_Run.blue}${bddStr}${_Run.boldOff}`
-                        : `\n${_Run.red}Retry ${currentExecution}.\n${_Run.boldOff}`);
-
-                    const example = TableValues.from(bdd.exampleRow(exampleNumber));
-                    const tables = MultipleTableValues.from(bdd.tables());
-                    const ctx = new Context(example, tables);
-
-                    try {
-
-                        // TODO: REMOVE:
-                        // for (const codeTerm of bdd.codeTerms) {
-                        //   if (codeTerm.codeRun) {
-                        //     await codeTerm.codeRun(ctx);
-                        //   }
-                        // }
-                        for (const codeTerm of Array.from(bdd.codeTerms)) {
-                            if (codeTerm.codeRun) {
-                                await codeTerm.codeRun(ctx);
-                            }
-                        }
-
-                    } catch (error) {
-                        bdd.passed.push(false);
-                        BddReporter.runInfo.failedCount++;
-                        throw error;
-                    }
-
-                    bdd.passed.push(true);
-                    BddReporter.runInfo.passedCount++;
-                },
-                //
-                // Timeout:
-                bdd._timeout);
-        }
+      // eslint-disable-next-line jest/no-disabled-tests
+      test.skip(
+        _testName,
+        async () => {
+        },
+      );
     }
+      //
+    // Test is NOT skipped.
+    else {
 
-    _header(skip: boolean, testNumberStr: string): string {
-        return `${_Run.yellow}${_Run.italic}TEST ${testNumberStr} ${skip ? 'SKIPPED' : ''} ${_Run.italicOff}══════════════════════════════════════════════════${_Run.reset}\n\n`;
+      // We delegate to Jest to actually run the test.
+      test(
+        //
+        // Test name:
+        _testName,
+        //
+        // Test code:
+        async () => {
+          currentExecution++;
+
+          process.stdout.write(
+            ((currentExecution === 1)
+                ? `\n${this._header(bdd._skip, _testCountStr)}${_Run.blue}${bddStr}${_Run.boldOff}`
+                : `\n${_Run.red}Retry ${currentExecution}.\n${_Run.boldOff}`
+            ) + '\n');
+
+          const example = TableValues.from(bdd.exampleRow(exampleNumber));
+          const tables = MultipleTableValues.from(bdd.tables());
+          const ctx = new Context(example, tables);
+
+          try {
+
+            // TODO: REMOVE:
+            // for (const codeTerm of bdd.codeTerms) {
+            //   if (codeTerm.codeRun) {
+            //     await codeTerm.codeRun(ctx);
+            //   }
+            // }
+            for (const codeTerm of Array.from(bdd.codeTerms)) {
+              if (codeTerm.codeRun) {
+                await codeTerm.codeRun(ctx);
+              }
+            }
+
+          } catch (error) {
+            bdd.passed.push(false);
+            BddReporter.runInfo.failedCount++;
+            throw error;
+          }
+
+          bdd.passed.push(true);
+          BddReporter.runInfo.passedCount++;
+        },
+        //
+        // Timeout:
+        bdd._timeout);
     }
+  }
+
+  _header(skip: boolean, testNumberStr: string): string {
+    return `${_Run.yellow}${_Run.italic}TEST ${testNumberStr} ${skip ? 'SKIPPED' : ''} ${_Run.italicOff}══════════════════════════════════════════════════${_Run.reset}\n\n`;
+  }
 }
 
 /** This is for testing the Easy BDD Tool only. */
 class _TestRun {
-    private readonly code: CodeRun;
-    private readonly reporter?: BddReporter;
+  private readonly code: CodeRun;
+  private readonly reporter?: BddReporter;
 
-    constructor(code: CodeRun, reporter?: BddReporter) {
-        this.code = code;
-        this.reporter = reporter;
+  constructor(code: CodeRun, reporter?: BddReporter) {
+    this.code = code;
+    this.reporter = reporter;
+  }
+
+  run(bdd: BDD): void {
+    // Add the code to the BDD, as a ThenCode.
+    // eslint-disable-next-line no-new
+    new _ThenCode(bdd, this.code);
+
+    if (this.reporter) {
+      this.reporter._addBdd(bdd);
     }
 
-    run(bdd: BDD): void {
-        // Add the code to the BDD, as a ThenCode.
-        // eslint-disable-next-line no-new
-        new _ThenCode(bdd, this.code);
+    const numberOfExamples = bdd.numberOfExamples();
 
-        if (this.reporter) {
-            this.reporter._addBdd(bdd);
-        }
-
-        const numberOfExamples = bdd.numberOfExamples();
-
-        if (numberOfExamples === 0) {
-            this._runTheTest(bdd, null);
-        } else {
-            for (let i = 0; i < numberOfExamples; i++) {
-                this._runTheTest(bdd, i);
-            }
-        }
+    if (numberOfExamples === 0) {
+      this._runTheTest(bdd, null);
+    } else {
+      for (let i = 0; i < numberOfExamples; i++) {
+        this._runTheTest(bdd, i);
+      }
     }
+  }
 
-    private _runTheTest(bdd: BDD, exampleNumber: number | null): void {
-        const example = TableValues.from(bdd.exampleRow(exampleNumber));
-        const tables = MultipleTableValues.from(bdd.tables());
-        const ctx = new Context(example, tables);
+  private _runTheTest(bdd: BDD, exampleNumber: number | null): void {
+    const example = TableValues.from(bdd.exampleRow(exampleNumber));
+    const tables = MultipleTableValues.from(bdd.tables());
+    const ctx = new Context(example, tables);
 
-        if (!bdd.skip) {
-            try {
-                // Run all bdd code.
-                const codeRuns: (CodeRun | undefined)[] =
-                    Array.from(bdd.codeTerms).map((codeTerm: CodeTerm) => codeTerm.codeRun);
+    if (!bdd.skip) {
+      try {
+        // Run all bdd code.
+        const codeRuns: (CodeRun | undefined)[] =
+          Array.from(bdd.codeTerms).map((codeTerm: CodeTerm) => codeTerm.codeRun);
 
-                for (const codeRun of codeRuns) {
-                    if (codeRun) {
-                        codeRun(ctx);
-                    }
-                }
-
-                bdd.passed.push(true);
-            } catch (error) {
-                bdd.passed.push(false);
-            }
+        for (const codeRun of codeRuns) {
+          if (codeRun) {
+            codeRun(ctx);
+          }
         }
+
+        bdd.passed.push(true);
+      } catch (error) {
+        bdd.passed.push(false);
+      }
     }
+  }
 }

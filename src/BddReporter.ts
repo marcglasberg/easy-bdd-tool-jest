@@ -44,7 +44,7 @@ export abstract class BddReporter {
         afterAll(async () => {
 
             // TODO: Move this to a Jest Custom Reporter?
-            // console.log(
+            // process.stdout.write(
             //   `${this.yellow}\n` +
             //   'RESULTS ════════════════════════════════════════════════\n' +
             //   `TOTAL: ${this.runInfo.totalTestCount} tests (${this.runInfo.testCount} BDDs)\n` +
@@ -57,7 +57,7 @@ export abstract class BddReporter {
             for (const _reporter of this._reporters) {
 
                 // TODO: Move this to a Jest Custom Reporter?
-                // console.log(`Running the ${_reporter.constructor.name}...\n`);
+                // process.stdout.write(`Running the ${_reporter.constructor.name}...\n`);
 
                 await _reporter.report();
             }
