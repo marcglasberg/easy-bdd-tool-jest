@@ -69,7 +69,7 @@ export abstract class BddReporter {
     public _addBdd(bdd: BDD): void {
 
         // Use the feature, if provided. Otherwise, use the "empty feature".
-        let _feature = bdd.feature ?? BddReporter._emptyFeature;
+        const _feature = bdd.feature ?? BddReporter._emptyFeature;
 
         // We must find out if we already have a feature with the given title.
         // If we do, use the one we already have.

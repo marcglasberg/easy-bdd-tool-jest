@@ -816,6 +816,6 @@ declare class ThenTable extends TableTerm {
     run(code: CodeRun): void;
     testRun(code: CodeRun, reporter: BddReporter): BDD;
 }
-declare type CodeRun = ((ctx: Context) => Promise<void> | void) | undefined;
+type CodeRun = ((ctx: Context) => Promise<void> | void) | undefined;
 export {};
 //# sourceMappingURL=Bdd.d.ts.map

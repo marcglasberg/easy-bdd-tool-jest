@@ -8,7 +8,7 @@ export class TableValues {
     }
 
     static from(exampleRow: Iterable<Val> | null): TableValues {
-        let _map = new Map<string, any>();
+        const _map = new Map<string, any>();
         exampleRow = exampleRow || [];
 
         // TODO: REMOVE:

@@ -39,7 +39,7 @@ export class Val {
             //
         // 3)
         else if ((<Describe>_value).describe) {
-            let description = (<Describe>_value).describe();
+            const description = (<Describe>_value).describe();
             return (description === null) ? 'NULL' : description.toString();
         }
             //

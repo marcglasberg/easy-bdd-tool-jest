@@ -10,9 +10,9 @@ export class MultipleTableValues {
     }
 
     static from(tableTerms: TableTerm[]): MultipleTableValues {
-        let _tables: Map<string, TableValues[]> = new Map();
+        const _tables: Map<string, TableValues[]> = new Map();
         tableTerms.forEach((_table) => {
-            let tableValues = _table.rows.map((r) => TableValues.from(r.values));
+            const tableValues = _table.rows.map((r) => TableValues.from(r.values));
             _tables.set(_table.tableName, tableValues);
         });
         return new MultipleTableValues(_tables);

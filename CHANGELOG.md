@@ -1,3 +1,8 @@
+## [1.1.0] - 2026/10/07
+
+* Supports Jest 30. `jest` is now a peer dependency (`^29.0.0 || ^30.0.0`), so your project's own
+  Jest is used, instead of a second copy being installed.
+
 ## [1.0.4] - 2024/03/21
 
 * Using `process.stdout.write` instead of `console.log`

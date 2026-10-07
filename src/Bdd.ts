@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-shadow */
+ 
 // noinspection JSUnusedGlobalSymbols,UnnecessaryLocalVariableJS,DuplicatedCode
 
 import { test } from '@jest/globals';
@@ -171,10 +171,10 @@ export abstract class Term extends _BaseTerm {
   }
 
   protected _keyword(config: Config = Config._default): string {
-    let term = this.keyword(config);
+    const term = this.keyword(config);
     let result = this._keyword_unpadded(term, config);
     if (config.rightAlignKeywords) {
-      let padSize = this._padSize(config);
+      const padSize = this._padSize(config);
       result = result.padStart(padSize, config.padChar);
     }
     return result;
@@ -1054,46 +1054,46 @@ export class TableTerm extends Term {
    * ]
    */
   formatTable(config: Config): string {
-    let sizes: { [key: string]: number } = {};
-    for (let _row of this.rows) {
-      for (let value of _row.values) {
-        let maxValue1: number | undefined = sizes[value.name];
-        let maxValue2: number = Math.max(value.name.length, value.toString(config).length);
-        let maxValue: number = (maxValue1 === undefined) ? maxValue2 : Math.max(maxValue1, maxValue2);
+    const sizes: { [key: string]: number } = {};
+    for (const _row of this.rows) {
+      for (const value of _row.values) {
+        const maxValue1: number | undefined = sizes[value.name];
+        const maxValue2: number = Math.max(value.name.length, value.toString(config).length);
+        const maxValue: number = (maxValue1 === undefined) ? maxValue2 : Math.max(maxValue1, maxValue2);
 
         sizes[value.name] = maxValue;
       }
     }
 
-    let spaces: string = config.spaces;
-    let space: string = config.space;
-    let endOfLineChar: string = config.endOfLineChar;
-    let tableDivider: string = config.tableDivider;
+    const spaces: string = config.spaces;
+    const space: string = config.space;
+    const endOfLineChar: string = config.endOfLineChar;
+    const tableDivider: string = config.tableDivider;
 
-    let rightAlignPadding: string = spaces +
+    const rightAlignPadding: string = spaces +
       spaces +
       spaces +
       ((config.rightAlignKeywords) ? config.padChar.repeat(4) : '');
 
-    let header: string = rightAlignPadding +
+    const header: string = rightAlignPadding +
       `${tableDivider}${space}` +
       this.rows[0].values.map(value => {
-        let length: number = sizes[value.name] ?? 50;
+        const length: number = sizes[value.name] ?? 50;
         return value.name.padEnd(length, space);
       }).join(`${space}${tableDivider}${space}`) +
       `${space}${tableDivider}`;
 
-    let rowsStr: string[] = this.rows.map(row => {
+    const rowsStr: string[] = this.rows.map(row => {
       return rightAlignPadding +
         `${tableDivider}${space}` +
         row.values.map(value => {
-          let length: number = sizes[value.name] ?? 50;
+          const length: number = sizes[value.name] ?? 50;
           return value.toString(config).padEnd(length, space);
         }).join(`${space}${tableDivider}${space}`) +
         `${space}${tableDivider}`;
     });
 
-    let result: string = `${header}${endOfLineChar}` +
+    const result: string = `${header}${endOfLineChar}` +
       `${rowsStr.join(endOfLineChar)}`;
 
     return result;
@@ -1176,13 +1176,13 @@ class Example extends Term {
    * ]
    */
   formatExampleTable(config: Config): string {
-    let sizes: { [key: string]: number } = {};
+    const sizes: { [key: string]: number } = {};
 
     this.rows.forEach(row => {
       row.forEach(value => {
-        let maxValue1 = sizes[value.name];
-        let maxValue2 = Math.max(value.name.length, value.toString(config).length);
-        let maxValue = (maxValue1 === undefined) ? maxValue2 : Math.max(maxValue1, maxValue2);
+        const maxValue1 = sizes[value.name];
+        const maxValue2 = Math.max(value.name.length, value.toString(config).length);
+        const maxValue = (maxValue1 === undefined) ? maxValue2 : Math.max(maxValue1, maxValue2);
         sizes[value.name] = maxValue;
       });
     });
@@ -1606,7 +1606,7 @@ class _Run {
   run(bdd: BDD, code: CodeRun): void {
 
     // Add the code to the BDD, as a ThenCode.
-    // eslint-disable-next-line no-new
+     
     new _ThenCode(bdd, code);
 
     BddReporter._reporters.forEach((_reporter) => {
@@ -1725,7 +1725,6 @@ class _Run {
     if (bdd._skip) {
       BddReporter.runInfo.skipCount++;
 
-      // eslint-disable-next-line jest/no-disabled-tests
       test.skip(
         _testName,
         async () => {
@@ -1802,7 +1801,7 @@ class _TestRun {
 
   run(bdd: BDD): void {
     // Add the code to the BDD, as a ThenCode.
-    // eslint-disable-next-line no-new
+     
     new _ThenCode(bdd, this.code);
 
     if (this.reporter) {
@@ -1838,7 +1837,7 @@ class _TestRun {
         }
 
         bdd.passed.push(true);
-      } catch (error) {
+      } catch {
         bdd.passed.push(false);
       }
     }

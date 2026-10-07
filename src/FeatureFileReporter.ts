@@ -12,7 +12,7 @@ export class FeatureFileReporter extends BddReporter {
   }
 
   async report(): Promise<void> {
-    let featureArray = Array.from(this.features);
+    const featureArray = Array.from(this.features);
     for (let i = 0; i < featureArray.length; i++) {
       const feature = featureArray[i];
       let sink: fsPromises.FileHandle | null = null;
@@ -30,7 +30,7 @@ export class FeatureFileReporter extends BddReporter {
         for (let j = 0; j < feature.testResults.length; j++) {
           await this.writeScenario(sink, feature.testResults[j]);
         }
-      } catch (e) {
+      } catch {
         process.stdout.write('Failed generating feature files!\n');
       } finally {
         if (sink) {
