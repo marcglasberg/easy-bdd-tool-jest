@@ -1,3 +1,12 @@
+## [1.3.0] - 2026/11/02
+
+* BDDs can test your app through its UI, with Detox (React Native) or Playwright (web), by using
+  them in the code of each step. See the new examples in the `examples` directory, and the README.
+
+* Fix: Errors thrown by Detox were not recognized as errors, because Detox creates them outside of
+  the Jest test environment. Their stack traces kept the internal frames of the Easy BDD Tool, and
+  the Cucumber results showed them with type `object` and without a stack trace.
+
 ## [1.2.0] - 2026/11/02
 
 * New Jest reporter, `easy-bdd-tool-jest/jest-reporter`, for the BDDs of all the test files of a

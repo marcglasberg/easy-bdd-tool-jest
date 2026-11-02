@@ -50,7 +50,7 @@
 2. Press `+` and select `npm`
 3. Change fields:
     - Name: `npm start`
-    - Package.json: `~\Documents\GitHub\kiss-for-react\examples\todo-app-example\package.json`
+    - Package.json: `~\Documents\GitHub\easy-bdd-tool-jest\examples\todo-app-example\package.json`
     - Command: `run`
     - Scripts: `dev`
     - Arguments: ``

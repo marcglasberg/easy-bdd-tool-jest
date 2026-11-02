@@ -1165,6 +1165,57 @@ The description of each BDD is printed to the console before it runs.
 
 ---
 
+## 14. Testing the UI
+
+Usually, BDDs test the business rules of your app, without the UI. But you can also write BDDs that
+test your app through its UI, by using a UI testing tool in the code of each step. This works with
+<a href="https://wix.github.io/Detox/">Detox</a> for React Native apps, and with
+<a href="https://playwright.dev">Playwright</a> for web apps.
+
+For example, with Detox:
+
+```typescript
+import { by, element, expect } from 'detox';
+
+Bdd(feature)
+    .scenario('Adding a todo.')
+    .when('The user types "Buy milk" and taps Add.')
+    .code(async () => {
+        await element(by.id('todo-input')).typeText('Buy milk');
+        await element(by.text('Add')).tap();
+    })
+    .then('The todo "Buy milk" is shown.')
+    .code(async () => {
+        await expect(element(by.text('Buy milk'))).toBeVisible();
+    })
+    .run();
+```
+
+And with Playwright:
+
+```typescript
+Bdd(feature)
+    .scenario('Adding a todo.')
+    .when('The user types "Buy milk" and clicks Add.')
+    .code(async () => {
+        await page.getByRole('textbox').fill('Buy milk');
+        await page.getByRole('button', { name: 'Add' }).click();
+    })
+    .then('The todo "Buy milk" is shown.')
+    .code(async () => {
+        await page.getByText('Buy milk').waitFor();
+    })
+    .run();
+```
+
+See the complete examples, with their configuration, in the `examples` directory:
+<a href="https://github.com/marcglasberg/easy-bdd-tool-jest/tree/main/examples/TodoAppReactNative">TodoAppReactNative</a>
+(Detox) and
+<a href="https://github.com/marcglasberg/easy-bdd-tool-jest/tree/main/examples/todo-app-example">todo-app-example</a>
+(Playwright).
+
+---
+
 ## Final notes
 
 ### Using Jest features

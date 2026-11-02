@@ -1,70 +1,36 @@
-# What is it?
+# Todo App (web)
 
-The `todo-app-example` is a Vite + TypeScript + React web page to demonstrate the use of Async
-Redux.
+A small React web app (Vite + TypeScript), to show how to write BDDs with the **Easy BDD Tool**.
 
 ![TodoApp_Web_Scren.jpg](readme-images/TodoApp_Web_Scren.jpg)
 
-## To build and run using IntelliJ
+It has two kinds of BDDs:
 
-1. Select `Edit Configuration...` in the toolbar.
-2. Click the `+` button and select `npm`. A window will open.
-3. In `package.json` provide the path to this file:
-   `[something]\kiss-for-react\examples\todo-app-example\package.json`
-4. In `Command`, select `run`.
-5. In `Scripts`, select `dev`.
-6. Press the `OK` button to save.
-7. In the toolbar, click the green "run" button.
+* `__tests__/bdd.*.test.ts` test the business rules of the app (its state and actions), without
+  the UI. Run them with `npm test`.
 
-## Note
+* `e2e/bdd.TodoList.e2e.ts` test the app through its UI, in a real browser, with
+  [Playwright](https://playwright.dev). Each step types, clicks and checks what's on the page.
+  Run them with `npm run e2e`. The first time, install the browser with
+  `npx playwright install chromium`.
 
-This project was created following [https://vite.dev/guide](https://vite.dev/guide):
+## How the end-to-end tests work
 
-```s
-npm create vite@latest todo-app-example -- --template react-ts
+* `e2e/jest.config.js` is the Jest configuration of the end-to-end tests.
+* `e2e/startApp.mjs` serves the app with Vite before the tests run, and `e2e/stopApp.mjs` stops it.
+* The test file opens the browser before the tests, and a new page for each scenario, so that each
+  scenario starts with no todos.
+* The **Easy BDD Tool** Jest reporter writes the feature files into `e2e/gen_features/`, and the
+  Cucumber results into `e2e/gen_cucumber_results/`.
+
+## Running the app
+
+```
+npm install
+npm run dev
 ```
 
 ## Dependency
 
-In it's `package.json` file it adds Kiss as a dependency like this:
-
-```json
-{
-  "dependencies": {
-    "kiss-for-react": "file:../.."
-  }
-}
-```
-
-That's because `todo-app-example` is inside Kiss itself, in the `examples` directory.
-If you run it from an independent project, you'll need to include Kiss from npm like this:
-
-```json
-{
-  "dependencies": {
-    "kiss-for-react": "^2.0.0"
-  }
-}
-```
-
-But be sure to use the newest package version.
-
-## Vite configuration
-
-The `vite.config.ts` file has two settings worth knowing about:
-
-* `resolve.dedupe: ['react', 'react-dom']` is only needed here, because Kiss is linked from the
-  repository root, which has its own copy of React. Without it, the app would load two copies of
-  React and the hooks would fail.
-
-* `build.rolldownOptions.output.keepNames: true` is needed in **any** project that uses Kiss's
-  `ClassPersistor`, because it saves and restores the state using the class names. Without it,
-  the production build minifies the class names, and the persisted state can't be restored.
-
-## Importing
-
-To import Kiss from `todo-app-example`:
-
-```ts
-import {Store, KissAction} from 'kiss-for-react';
-```
+This app is inside the **Easy BDD Tool** repository, so its `package.json` uses the local version:
+`"easy-bdd-tool-jest": "file:../.."`. In your own project, use the version from npm instead.

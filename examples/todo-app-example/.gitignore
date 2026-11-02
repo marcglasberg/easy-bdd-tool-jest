@@ -1099,3 +1099,6 @@ FodyWeavers.xsd
 
 
 
+
+# End-to-end tests
+e2e/gen_cucumber_results/
