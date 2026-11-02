@@ -85,6 +85,16 @@ export interface EndEvent {
     error?: ErrorData;
 }
 export type RunEvent = FileEvent | FeatureEvent | BddEvent | StartEvent | CodeEvent | EndEvent;
+/**
+ * Whether the [error] looks like an `Error`. Note `instanceof Error` is not used, since errors
+ * may come from another JavaScript realm (for example, Detox creates its errors outside of the
+ * Jest test environment), and then they are not instances of this realm's `Error`.
+ */
+export declare function isErrorLike(error: unknown): error is {
+    message: string;
+    name?: unknown;
+    stack?: unknown;
+};
 /** Converts anything thrown into an [ErrorData]. */
 export declare function errorData(error: unknown): ErrorData;
 //# sourceMappingURL=runData.d.ts.map

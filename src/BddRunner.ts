@@ -257,15 +257,18 @@ export class BddRunner {
    * Returns the same error.
    */
   static removeInternalFrames<T>(error: T): T {
-    if (_ownDirectory === undefined || !(error instanceof Error) || typeof error.stack !== 'string') return error;
+    // Not `instanceof Error`, since the error may come from another JavaScript realm (like Detox's errors).
+    if (_ownDirectory === undefined || typeof error !== 'object' || error === null) return error;
+    const stack: unknown = (error as { stack?: unknown }).stack;
+    if (typeof stack !== 'string') return error;
 
-    const lines = error.stack.split('\n');
+    const lines = stack.split('\n');
     const filtered = lines.filter(line => !(/^\s+at /.test(line) && line.includes(_ownDirectory!)));
 
     // Keep the stack if it would have no frames left.
     if (filtered.length < lines.length && filtered.some(line => /^\s+at /.test(line))) {
       try {
-        error.stack = filtered.join('\n');
+        (error as { stack?: string }).stack = filtered.join('\n');
       } catch {
         // The stack can't be changed. Keep it.
       }
