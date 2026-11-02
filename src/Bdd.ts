@@ -1,69 +1,15 @@
- 
 // noinspection JSUnusedGlobalSymbols,UnnecessaryLocalVariableJS,DuplicatedCode
 
-import { test } from '@jest/globals';
-import { TableValues } from "./TableValues";
-import { Feature } from "./Feature";
-import { Row } from "./row";
-import { Val } from "./val";
-import { Context } from "./Context";
-import { BddReporter } from "./BddReporter";
-import { Config } from "./Config";
-import { Keywords } from "./Keywords";
-import { BddError } from "./BddError";
-import { MultipleTableValues } from "./MultipleTableValues";
-
-export class TableRows {
-  private readonly _values: TableValues[];
-
-  constructor(values: TableValues[]) {
-    this._values = values;
-  }
-
-  /**
-   * Example:
-   * ctx.table('notifications').row(0).val('read') as bool;
-   */
-  row(index: number): TableValues {
-    if (index < 0 || index >= this._values.length)
-      throw new BddError(
-        `You can't get table row(${index}), since range is 0..${this._values.length}.`,
-      );
-    else
-      return this._values[index];
-  }
-
-  /**
-   * Return the first row it finds with the given name/value pair. Example:
-   * ctx.table('notifications').rowWhere(name: 'property', value: 'lastPrice').val('market') as Money;
-   * If no name/value pair is found, an error is thrown.
-   */
-  rowWhere(name: string, value?: object): TableValues {
-    const foundRow = this._values.find(
-      (btv) => btv.val(name) === value,
-    );
-
-    if (!foundRow) {
-      throw new BddError(
-        `There is no table with name:"${name}" and value: "${value}".`,
-      );
-    }
-
-    return foundRow;
-  }
-
-  /**
-   * Example:
-   * ctx.table('notifications').rows;
-   */
-  get rows(): TableValues[] {
-    return [...this._values];
-  }
-
-  toString(): string {
-    return `BddTableRows{${this._values}}`;
-  }
-}
+import type { Feature } from './Feature';
+import { Row } from './row';
+import { Val } from './val';
+import type { Context } from './Context';
+import type { BddReporter } from './BddReporter';
+import { Config } from './Config';
+import { BddError } from './BddError';
+import { BddRunner } from './BddRunner';
+import type { BddExecution } from './BddExecution';
+import { escapeCell, lineBreak, singleLine } from './gherkin';
 
 export function Bdd(feature?: Feature): BDD {
   return new BDD(feature);
@@ -193,8 +139,18 @@ export abstract class Term extends _BaseTerm {
       throw new BddError(this.variation);
   }
 
+  /** Whether this term is a note, added with `.note()`. */
+  get isNote(): boolean {
+    return this.variation === _Variation.note;
+  }
+
+  /** Whether this term is a Gherkin step (Given, When, Then, And or But), and not a note. */
+  get isStep(): boolean {
+    return false;
+  }
+
   protected _capitalize(text: string): string {
-    if (this.variation === _Variation.note) {
+    if (this.variation === _Variation.note && text.length > 0) {
       const characters = Array.from(text);
       return characters[0].toUpperCase() + characters.slice(1).join('');
     } else {
@@ -202,19 +158,33 @@ export abstract class Term extends _BaseTerm {
     }
   }
 
+  /**
+   * A line break in the text is written as a space, so that it doesn't start a new step.
+   * The exception is a note: each line of a note becomes its own comment line.
+   */
   toString(config: Config = Config._default): string {
+    if (this.variation === _Variation.note) {
+      return this._capitalize(this.text)
+        .split(lineBreak)
+        .map(line => this._line(config, line))
+        .join(config.endOfLineChar);
+    }
+    return this._line(config, singleLine(this.text));
+  }
+
+  protected _line(config: Config, content: string): string {
     return this.keywordPrefix(config) +
       this.spaces(config) +
       this._keyword(config) +
       this.keywordSuffix(config) +
       ' ' +
       this.prefix(config) +
-      this._capitalize(this.text) +
+      content +
       this.suffix(config);
   }
 }
 
-abstract class CodeTerm extends _BaseTerm {
+export abstract class CodeTerm extends _BaseTerm {
   codeRun: CodeRun;
 
   protected constructor(bdd: BDD, codeRun: CodeRun) {
@@ -228,7 +198,16 @@ export class BDD {
   terms: _BaseTerm[];
   _timeout?: number;
   _skip: boolean;
+  _only: boolean;
+
+  /** True if this BDD holds the Background steps of a feature (see `Feature.background`). */
+  readonly isBackground: boolean;
+
+  /** The callbacks given to `.run()`. They belong to no step. */
   codeRuns: CodeRun[];
+
+  /** @internal */
+  readonly _executions: BddExecution[];
 
   /**
    * Nulls means the test was not run yet.
@@ -237,13 +216,25 @@ export class BDD {
    */
   passed: boolean[];
 
-  constructor(feature?: Feature) {
+  constructor(feature?: Feature, isBackground: boolean = false) {
     this.feature = feature;
+    this.isBackground = isBackground;
     this.terms = [];
     this._timeout = undefined;
     this._skip = false;
+    this._only = false;
     this.codeRuns = [];
     this.passed = [];
+    this._executions = [];
+  }
+
+  /**
+   * Each run of this BDD, recorded while it runs: one for each example row, and one
+   * for each retry. Each has the result, duration and error of each code block.
+   * See [BddExecution].
+   */
+  get executions(): BddExecution[] {
+    return [...this._executions];
   }
 
   addCode(code: CodeRun): void {
@@ -283,8 +274,31 @@ export class BDD {
     return example ? example.rows.length : 0;
   }
 
+  /**
+   * Adds an example row. A BDD has a single `Examples` block, so the row is added
+   * to the existing block, or a new block is created if there is none yet.
+   */
+  addExampleValues(values: Val[]): Example {
+    if (values.length === 0) throw new BddError('Examples require at least one value.');
+    const existing = this.example();
+    if (existing) return existing._addRow(values);
+    return new Example(this, values);
+  }
+
   get skip(): BDD {
     this._skip = true;
+    return this;
+  }
+
+  /**
+   * Runs only this BDD while you work on it, like `test.only` in Jest.
+   * The other BDDs in the same test file are skipped, unless they are also marked with `.only`.
+   *
+   * @deprecated Not really deprecated. It's marked like this only as a reminder
+   * to remove the `.only` before committing your code.
+   */
+  get only(): BDD {
+    this._only = true;
     return this;
   }
 
@@ -334,8 +348,11 @@ export class BDD {
 
   toString(config: Config = Config._default, withFeature: boolean = false): string {
     const featureString = withFeature ? this.feature?.toString(config) ?? '' : '';
+    const backgroundString = withFeature && this.feature?.hasBackground
+      ? config.endOfLineChar + this.feature.background.toString(config)
+      : '';
     const termsString = this.toMap(config).join(config.endOfLineChar);
-    return featureString + termsString + config.endOfLineChar;
+    return featureString + backgroundString + termsString + config.endOfLineChar;
   }
 }
 
@@ -407,12 +424,34 @@ class Scenario extends Term {
     return new Given(this.bdd, _, _Variation.note);
   }
 
+  /**
+   * This keyword indicates the specific action taken by the user or the system.
+   * It's the trigger for the behavior that you're specifying. A scenario may start
+   * directly with `when`, without a `given` step.
+   */
+  when(_: string): When {
+    return new When(this.bdd, _);
+  }
+
+  /**
+   * This keyword is used to describe the expected outcome or result.
+   * A scenario may start directly with `then`, without `given` or `when` steps.
+   */
+  then(_: string): Then {
+    return new Then(this.bdd, _);
+  }
+
   toString(config: Config = Config._default): string {
     return super.toString(config);
   }
 }
 
 class Given extends Term {
+  /** Whether this term is a Gherkin step (Given, When, Then, And or But), and not a note. */
+  get isStep(): boolean {
+    return !this.isNote;
+  }
+
   constructor(bdd: BDD, text: string, variation: _Variation = _Variation.term) {
     super(bdd, text, variation);
   }
@@ -514,6 +553,10 @@ class Given extends Term {
     return new _GivenCode(this.bdd, code);
   }
 
+  run(code?: CodeRun): void {
+    BddRunner.run(this.bdd, code);
+  }
+
   toString(config: Config = Config._default): string {
     return super.toString(config);
   }
@@ -580,12 +623,31 @@ class _GivenCode extends CodeTerm {
     return new When(this.bdd, _);
   }
 
+  /**
+   * This keyword is used to describe the expected outcome or result after the
+   * 'When' step is executed. It's used to assert that a certain outcome should
+   * occur, which helps to validate whether the system behaves as expected.
+   * An example is, "Then I should be redirected to the dashboard".
+   */
+  then(_: string): Then {
+    return new Then(this.bdd, _);
+  }
+
   code(code: CodeRun): _GivenCode {
     return new _GivenCode(this.bdd, code);
+  }
+
+  run(code?: CodeRun): void {
+    BddRunner.run(this.bdd, code);
   }
 }
 
 class When extends Term {
+  /** Whether this term is a Gherkin step (Given, When, Then, And or But), and not a note. */
+  get isStep(): boolean {
+    return !this.isNote;
+  }
+
   constructor(bdd: BDD, text: string, variation: _Variation = _Variation.term) {
     super(bdd, text, variation);
   }
@@ -677,8 +739,8 @@ class When extends Term {
     return new _WhenCode(this.bdd, code);
   }
 
-  run(code: CodeRun): void {
-    new _Run().run(this.bdd, code);
+  run(code?: CodeRun): void {
+    BddRunner.run(this.bdd, code);
   }
 
   toString(config: Config = Config._default): string {
@@ -749,9 +811,18 @@ class _WhenCode extends CodeTerm {
   code(code: CodeRun): _WhenCode {
     return new _WhenCode(this.bdd, code);
   }
+
+  run(code?: CodeRun): void {
+    BddRunner.run(this.bdd, code);
+  }
 }
 
 class Then extends Term {
+  /** Whether this term is a Gherkin step (Given, When, Then, And or But), and not a note. */
+  get isStep(): boolean {
+    return !this.isNote;
+  }
+
   constructor(bdd: BDD, text: string, variation: _Variation = _Variation.term) {
     super(bdd, text, variation);
   }
@@ -887,19 +958,19 @@ class Then extends Term {
    * ```
    */
   example(v1: Val, v2?: Val, v3?: Val, v4?: Val, v5?: Val, v6?: Val, v7?: Val, v8?: Val, v9?: Val, v10?: Val, v11?: Val, v12?: Val, v13?: Val, v14?: Val, v15?: Val): Example {
-    return new Example(this.bdd, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15);
+    return this.bdd.addExampleValues(_values(v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15));
   }
 
   code(code: CodeRun): _ThenCode {
     return new _ThenCode(this.bdd, code);
   }
 
-  run(code: CodeRun): void {
-    new _Run().run(this.bdd, code);
+  run(code?: CodeRun): void {
+    BddRunner.run(this.bdd, code);
   }
 
-  testRun(code: CodeRun, reporter: BddReporter): BDD {
-    new _TestRun(code, reporter).run(this.bdd);
+  testRun(code: CodeRun, reporter?: BddReporter): BDD {
+    BddRunner.testRun(this.bdd, code, reporter);
     return this.bdd;
   }
 
@@ -980,7 +1051,7 @@ class _ThenCode extends CodeTerm {
    * ```
    */
   example(v1: Val, v2?: Val, v3?: Val, v4?: Val, v5?: Val, v6?: Val, v7?: Val, v8?: Val, v9?: Val, v10?: Val, v11?: Val, v12?: Val, v13?: Val, v14?: Val, v15?: Val): Example {
-    return new Example(this.bdd, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15);
+    return this.bdd.addExampleValues(_values(v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15));
   }
 
   /**
@@ -990,8 +1061,8 @@ class _ThenCode extends CodeTerm {
    * For example, "And I should see a confirmation message" could follow
    * a 'Then' step to further specify the expected outcomes.
    */
-  and(_: string): When {
-    return When._internal(this.bdd, _, _Variation.and);
+  and(_: string): Then {
+    return new Then(this.bdd, _, _Variation.and);
   }
 
   /**
@@ -1003,8 +1074,8 @@ class _ThenCode extends CodeTerm {
    * This helps in creating more comprehensive scenarios by covering both
    * what should happen and what should not happen under certain conditions.
    */
-  but(_: string): When {
-    return When._internal(this.bdd, _, _Variation.but);
+  but(_: string): Then {
+    return new Then(this.bdd, _, _Variation.but);
   }
 
   /**
@@ -1015,20 +1086,20 @@ class _ThenCode extends CodeTerm {
    * giving context or explaining the rationale behind a certain test scenario,
    * making it easier for others to understand the purpose and scope of the test.
    */
-  note(_: string): When {
-    return When._internal(this.bdd, _, _Variation.note);
+  note(_: string): Then {
+    return new Then(this.bdd, _, _Variation.note);
   }
 
   code(code: CodeRun): _ThenCode {
     return new _ThenCode(this.bdd, code);
   }
 
-  run(code: CodeRun): void {
-    new _Run().run(this.bdd, code);
+  run(code?: CodeRun): void {
+    BddRunner.run(this.bdd, code);
   }
 
-  testRun(code: CodeRun, reporter: BddReporter): BDD {
-    new _TestRun(code, reporter).run(this.bdd);
+  testRun(code: CodeRun, reporter?: BddReporter): BDD {
+    BddRunner.testRun(this.bdd, code, reporter);
     return this.bdd;
   }
 }
@@ -1042,8 +1113,8 @@ export class TableTerm extends Term {
     this.tableName = tableName;
   }
 
-  run(code: CodeRun): void {
-    new _Run().run(this.bdd, code);
+  run(code?: CodeRun): void {
+    BddRunner.run(this.bdd, code);
   }
 
   /**
@@ -1058,7 +1129,7 @@ export class TableTerm extends Term {
     for (const _row of this.rows) {
       for (const value of _row.values) {
         const maxValue1: number | undefined = sizes[value.name];
-        const maxValue2: number = Math.max(value.name.length, value.toString(config).length);
+        const maxValue2: number = Math.max(escapeCell(value.name).length, escapeCell(value.toString(config)).length);
         const maxValue: number = (maxValue1 === undefined) ? maxValue2 : Math.max(maxValue1, maxValue2);
 
         sizes[value.name] = maxValue;
@@ -1079,7 +1150,7 @@ export class TableTerm extends Term {
       `${tableDivider}${space}` +
       this.rows[0].values.map(value => {
         const length: number = sizes[value.name] ?? 50;
-        return value.name.padEnd(length, space);
+        return escapeCell(value.name).padEnd(length, space);
       }).join(`${space}${tableDivider}${space}`) +
       `${space}${tableDivider}`;
 
@@ -1088,7 +1159,7 @@ export class TableTerm extends Term {
         `${tableDivider}${space}` +
         row.values.map(value => {
           const length: number = sizes[value.name] ?? 50;
-          return value.toString(config).padEnd(length, space);
+          return escapeCell(value.toString(config)).padEnd(length, space);
         }).join(`${space}${tableDivider}${space}`) +
         `${space}${tableDivider}`;
     });
@@ -1139,33 +1210,20 @@ class Example extends Term {
   // Rows is an array of Set objects containing values.
   rows: Set<Val>[] = [];
 
-  constructor(
-    bdd: BDD,
-    v1: Val,
-    v2?: Val,
-    v3?: Val,
-    v4?: Val,
-    v5?: Val,
-    v6?: Val,
-    v7?: Val,
-    v8?: Val,
-    v9?: Val,
-    v10?: Val,
-    v11?: Val,
-    v12?: Val,
-    v13?: Val,
-    v14?: Val,
-    v15?: Val,
-  ) {
+  /** Creates the `Examples` block, with its first row. Use `bdd.addExampleValues()` instead. */
+  constructor(bdd: BDD, values: Val[]) {
     super(bdd, '', _Variation.term);
-    const set =
-      new Set([v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15]
-        .filter(v => (v !== undefined) && (v !== null))) as Set<Val>;
-    this.rows.push(set);
+    this.rows.push(new Set(values));
   }
 
-  run(code: CodeRun): void {
-    new _Run().run(this.bdd, code);
+  /** @internal */
+  _addRow(values: Val[]): Example {
+    this.rows.push(new Set(values));
+    return this;
+  }
+
+  run(code?: CodeRun): void {
+    BddRunner.run(this.bdd, code);
   }
 
   /**
@@ -1181,7 +1239,7 @@ class Example extends Term {
     this.rows.forEach(row => {
       row.forEach(value => {
         const maxValue1 = sizes[value.name];
-        const maxValue2 = Math.max(value.name.length, value.toString(config).length);
+        const maxValue2 = Math.max(escapeCell(value.name).length, escapeCell(value.toString(config)).length);
         const maxValue = (maxValue1 === undefined) ? maxValue2 : Math.max(maxValue1, maxValue2);
         sizes[value.name] = maxValue;
       });
@@ -1193,14 +1251,14 @@ class Example extends Term {
     const header = rightAlignPadding + tableDivider + space +
       Array.from(this.rows.values().next().value as Set<Val>).map((value: Val) => {
         const length = sizes[value.name] ?? 50;
-        return value.name.padEnd(length, space);
+        return escapeCell(value.name).padEnd(length, space);
       }).join(space + tableDivider + space) + space + tableDivider;
 
     const rowsStr = this.rows.map((row) => {
       return rightAlignPadding + tableDivider + space +
         Array.from(row).map((value: Val) => {
           const length = sizes[value.name] ?? 50;
-          return value.toString(config).padEnd(length, space);
+          return escapeCell(value.toString(config)).padEnd(length, space);
         }).join(space + tableDivider + space) + space + tableDivider;
     });
 
@@ -1305,15 +1363,12 @@ class Example extends Term {
     v14?: Val,
     v15?: Val,
   ): Example {
-    const set = new Set([v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15]
-      .filter(v => (v !== undefined) && (v !== null))) as Set<Val>;
-    this.rows.push(set);
-    return this;
+    return this._addRow(_values(v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15));
   }
 
   // Visible for testing.
-  testRun(code: CodeRun, reporter: BddReporter): BDD {
-    new _TestRun(code, reporter).run(this.bdd);
+  testRun(code: CodeRun, reporter?: BddReporter): BDD {
+    BddRunner.testRun(this.bdd, code, reporter);
     return this.bdd;
   }
 
@@ -1321,7 +1376,7 @@ class Example extends Term {
   toString(config: Config = Config._default): string {
     return this.keywordPrefix(config) +
       this.spaces(config) +
-      this.keyword(config) +
+      this._keyword(config) +
       this.keywordSuffix(config) +
       ' ' +
       this.prefix(config) +
@@ -1577,7 +1632,7 @@ class ThenTable extends TableTerm {
    * ```
    */
   example(v1: Val, v2?: Val, v3?: Val, v4?: Val, v5?: Val, v6?: Val, v7?: Val, v8?: Val, v9?: Val, v10?: Val, v11?: Val, v12?: Val, v13?: Val, v14?: Val, v15?: Val): Example {
-    return new Example(this.bdd, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15);
+    return this.bdd.addExampleValues(_values(v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15));
   }
 
   code(code: CodeRun): _ThenCode {
@@ -1588,258 +1643,65 @@ class ThenTable extends TableTerm {
     return super.toString(config);
   }
 
-  run(code: CodeRun): void {
-    new _Run().run(this.bdd, code);
+  run(code?: CodeRun): void {
+    BddRunner.run(this.bdd, code);
   }
 
-  testRun(code: CodeRun, reporter: BddReporter): BDD {
-    new _TestRun(code, reporter).run(this.bdd);
+  testRun(code: CodeRun, reporter?: BddReporter): BDD {
+    BddRunner.testRun(this.bdd, code, reporter);
     return this.bdd;
   }
 }
 
 
-type CodeRun = ((ctx: Context) => Promise<void> | void) | undefined;
+export type CodeRun = ((ctx: Context) => Promise<void> | void) | undefined;
 
-/** This will run with the global reporter/runInfo. */
-class _Run {
-  run(bdd: BDD, code: CodeRun): void {
+/** The values that are not `undefined` or `null`. */
+function _values(...values: (Val | undefined | null)[]): Val[] {
+  return values.filter((v): v is Val => v !== undefined && v !== null);
+}
 
-    // Add the code to the BDD, as a ThenCode.
-     
-    new _ThenCode(bdd, code);
+/**
+ * The Background of a feature: steps that are common to all its scenarios.
+ * Get it with `feature.background`.
+ *
+ * In the feature file the Background is written once, before the scenarios.
+ * Its code (added with `.code()`) runs before the code of each scenario of the
+ * feature, and before each example row.
+ */
+export class Background {
+  /** The BDD that holds the Background steps. */
+  readonly bdd: BDD;
 
-    BddReporter._reporters.forEach((_reporter) => {
-      _reporter._addBdd(bdd);
-    });
-
-    const numberOfExamples = bdd.numberOfExamples();
-    BddReporter.runInfo.testCount++;
-
-    if (numberOfExamples === 0) {
-      this._runTheTest(bdd, null);
-    } else {
-      for (let i = 0; i < numberOfExamples; i++) {
-        this._runTheTest(bdd, i);
-      }
-    }
-  }
-
-  static readonly red = '\x1B[38;5;9m';
-  static readonly blue = '\x1B[38;5;45m';
-  static readonly yellow = '\x1B[38;5;226m';
-  static readonly grey = '\x1B[38;5;246m';
-  static readonly bold = '\u001b[1m';
-  static readonly italic = '\u001b[3m';
-  static readonly boldItalic = _Run.bold + _Run.italic;
-  static readonly boldOff = '\u001b[22m';
-  static readonly italicOff = '\u001b[23m';
-  static readonly boldItalicOff = _Run.boldOff + _Run.italicOff;
-  static readonly reset = '\u001b[0m';
-
-  static readonly config: Config = new Config({
-    keywords: new Keywords({
-      feature: `${_Run.boldItalic}Feature:${_Run.boldItalicOff}`,
-      scenario: `${_Run.boldItalic}Scenario:${_Run.boldItalicOff}`,
-      scenarioOutline: `${_Run.boldItalic}Scenario Outline:${_Run.boldItalicOff}`,
-      given: `${_Run.boldItalic}Given${_Run.boldItalicOff}`,
-      when: `${_Run.boldItalic}When${_Run.boldItalicOff}`,
-      then: `${_Run.boldItalic}Then${_Run.boldItalicOff}`,
-      and: `${_Run.boldItalic}And${_Run.boldItalicOff}`,
-      but: `${_Run.boldItalic}But${_Run.boldItalicOff}`,
-      comment: `${_Run.boldItalic}#${_Run.boldItalicOff}`,
-      examples: `${_Run.boldItalic}Examples:${_Run.boldItalicOff}`,
-    }),
-    keywordPrefix: new Keywords({
-      feature: '',
-      scenario: '\n',
-      scenarioOutline: '\n',
-      given: '\n',
-      when: '\n',
-      then: '\n',
-      and: '',
-      but: '',
-      comment: _Run.grey,
-      examples: '\n',
-      table: '',
-    }),
-    suffix: new Keywords({
-      feature: '',
-      scenario: '',
-      scenarioOutline: '',
-      given: '',
-      when: '',
-      then: '',
-      and: '',
-      but: '',
-      comment: _Run.blue,
-      examples: '',
-      table: '',
-    }),
-  });
-
-  subscript(index: number): string {
-    let result = '';
-    const x = index.toString();
-    for (let i = 0; i < x.length; i++) {
-      const char = x[i];
-      result += {
-        '0': '₀',
-        '1': '₁',
-        '2': '₂',
-        '3': '₃',
-        '4': '₄',
-        '5': '₅',
-        '6': '₆',
-        '7': '₇',
-        '8': '₈',
-        '9': '₉',
-      }[char];
-    }
-    return result;
-  }
-
-  /**  Returns something like: "4₁₂" */
-  private testCountStr(testCount: number, exampleNumber: number | null): string {
-    return `${testCount}${exampleNumber === null ? '' : this.subscript(exampleNumber + 1)}`;
+  constructor(bdd: BDD) {
+    this.bdd = bdd;
   }
 
   /**
-   * If the Bdd has examples, this method will be called once for each example, with
-   * [exampleNumber] starting in 0.
-   *
-   * If the Bdd does NOT have examples, this method will run once, with [exampleNumber] null.
+   * This keyword starts a step that sets up the initial context of the
+   * scenarios. For example, "Given I am logged into the website".
    */
-  private _runTheTest(bdd: BDD, exampleNumber: number | null): void {
-
-    BddReporter.runInfo.totalTestCount++;
-
-    let currentExecution = 0;
-    const bddStr = bdd.toString(_Run.config, true);
-    const testCount = BddReporter.runInfo.testCount;
-
-    const _testCountStr = this.testCountStr(testCount, exampleNumber);
-    const _testName = `${_testCountStr} ${bdd.description()}`;
-
-    // Test is skipped.
-    if (bdd._skip) {
-      BddReporter.runInfo.skipCount++;
-
-      test.skip(
-        _testName,
-        async () => {
-        },
-      );
-    }
-      //
-    // Test is NOT skipped.
-    else {
-
-      // We delegate to Jest to actually run the test.
-      test(
-        //
-        // Test name:
-        _testName,
-        //
-        // Test code:
-        async () => {
-          currentExecution++;
-
-          process.stdout.write(
-            ((currentExecution === 1)
-                ? `\n${this._header(bdd._skip, _testCountStr)}${_Run.blue}${bddStr}${_Run.boldOff}`
-                : `\n${_Run.red}Retry ${currentExecution}.\n${_Run.boldOff}`
-            ) + '\n');
-
-          const example = TableValues.from(bdd.exampleRow(exampleNumber));
-          const tables = MultipleTableValues.from(bdd.tables());
-          const ctx = new Context(example, tables);
-
-          try {
-
-            // TODO: REMOVE:
-            // for (const codeTerm of bdd.codeTerms) {
-            //   if (codeTerm.codeRun) {
-            //     await codeTerm.codeRun(ctx);
-            //   }
-            // }
-            for (const codeTerm of Array.from(bdd.codeTerms)) {
-              if (codeTerm.codeRun) {
-                await codeTerm.codeRun(ctx);
-              }
-            }
-
-          } catch (error) {
-            bdd.passed.push(false);
-            BddReporter.runInfo.failedCount++;
-            throw error;
-          }
-
-          bdd.passed.push(true);
-          BddReporter.runInfo.passedCount++;
-        },
-        //
-        // Timeout:
-        bdd._timeout);
-    }
+  given(_: string): Given {
+    return new Given(this.bdd, _);
   }
 
-  _header(skip: boolean, testNumberStr: string): string {
-    return `${_Run.yellow}${_Run.italic}TEST ${testNumberStr} ${skip ? 'SKIPPED' : ''} ${_Run.italicOff}══════════════════════════════════════════════════${_Run.reset}\n\n`;
-  }
-}
-
-/** This is for testing the Easy BDD Tool only. */
-class _TestRun {
-  private readonly code: CodeRun;
-  private readonly reporter?: BddReporter;
-
-  constructor(code: CodeRun, reporter?: BddReporter) {
-    this.code = code;
-    this.reporter = reporter;
+  /**
+   * Often used informally in comments within a Gherkin document to provide
+   * additional information, clarifications, or explanations about the steps.
+   */
+  note(_: string): Given {
+    return new Given(this.bdd, _, _Variation.note);
   }
 
-  run(bdd: BDD): void {
-    // Add the code to the BDD, as a ThenCode.
-     
-    new _ThenCode(bdd, this.code);
-
-    if (this.reporter) {
-      this.reporter._addBdd(bdd);
+  toString(config: Config = Config._default): string {
+    let result = config.spaces +
+      config.keywordPrefix.background +
+      config.keywords.background +
+      config.keywordSuffix.background +
+      config.endOfLineChar;
+    for (const term of Array.from(this.bdd.textTerms)) {
+      result += term.toString(config) + config.endOfLineChar;
     }
-
-    const numberOfExamples = bdd.numberOfExamples();
-
-    if (numberOfExamples === 0) {
-      this._runTheTest(bdd, null);
-    } else {
-      for (let i = 0; i < numberOfExamples; i++) {
-        this._runTheTest(bdd, i);
-      }
-    }
-  }
-
-  private _runTheTest(bdd: BDD, exampleNumber: number | null): void {
-    const example = TableValues.from(bdd.exampleRow(exampleNumber));
-    const tables = MultipleTableValues.from(bdd.tables());
-    const ctx = new Context(example, tables);
-
-    if (!bdd.skip) {
-      try {
-        // Run all bdd code.
-        const codeRuns: (CodeRun | undefined)[] =
-          Array.from(bdd.codeTerms).map((codeTerm: CodeTerm) => codeTerm.codeRun);
-
-        for (const codeRun of codeRuns) {
-          if (codeRun) {
-            codeRun(ctx);
-          }
-        }
-
-        bdd.passed.push(true);
-      } catch {
-        bdd.passed.push(false);
-      }
-    }
+    return result;
   }
 }

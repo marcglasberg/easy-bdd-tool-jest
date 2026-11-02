@@ -1,5 +1,6 @@
-import { Config } from "./Config";
-import { BDD, Term } from "./Bdd";
+import { Config } from './Config';
+import type { BDD, Term } from './Bdd';
+import type { BddExecution } from './BddExecution';
 export declare class TestResult {
     private _bdd;
     constructor(bdd: BDD);
@@ -17,5 +18,7 @@ export declare class TestResult {
      * False values means it did not pass.
      */
     get passed(): boolean[];
+    /** Each run of the BDD, with the result of each code block. See [BddExecution]. */
+    get executions(): BddExecution[];
 }
 //# sourceMappingURL=TestResult.d.ts.map

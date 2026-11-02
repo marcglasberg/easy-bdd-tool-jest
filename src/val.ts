@@ -1,50 +1,50 @@
-import {Config} from "./Config";
-import {Describe} from "./Describe";
+import { Config } from './Config';
 
 export function val(name: string, _: any): Val {
-    return new Val(name, _);
+  return new Val(name, _);
 }
 
 export class Val {
-    name: string;
-    value: any;
+  name: string;
+  value: any;
 
-    constructor(name: string, value: any) {
-        this.name = name;
-        this.value = value;
+  constructor(name: string, value: any) {
+    this.name = name;
+    this.value = value;
+  }
+
+  /**
+   * These steps will be applied to format a value in Examples and Tables:
+   *
+   * 1) If a [Config.transformDescribe] was provided, it will be used to format the value.
+   *    If it returns `null` or `undefined`, the value is not changed.
+   *
+   * 2) Next, if the value is `null`, return 'NULL'. If it's `undefined`, return 'undefined'.
+   *
+   * 3) Next, if the value implements the [Describe] interface (in other words, if it has a
+   *    [describe] method), it will be used to format the value.
+   *
+   * 4) Last, we'll call the value's [toString] method.
+   */
+  toString(config: Config = Config._default): string {
+    let _value = this.value;
+
+    // 1)
+    if (config.transformDescribe) {
+      _value = config.transformDescribe(this.value) ?? _value;
     }
 
-    /**
-     * These 3 steps will be applied to format a value in Examples and Tables:
-     *
-     * 1) If a [Config.transformDescribe] was provided, it will be used to format the value.
-     *
-     * 2) Next, if the value is null, return 'NULL'.
-     *
-     * 3) Next, if the value implements the [BddDescribe] interface, or if it has a
-     * [describe] method, it will be used to format the value.
-     *
-     * 4) Last, we'll call the value's [toString] method.
-     */
-    toString(config: Config = Config._default): string {
-        let _value = this.value;
+    // 2)
+    if (_value === null) return 'NULL';
+    if (_value === undefined) return 'undefined';
 
-        // 1)
-        if (config.transformDescribe) {
-            _value = config.transformDescribe(this.value) || _value;
-        }
-
-        // 2)
-        if (_value === null) return 'NULL';
-            //
-        // 3)
-        else if ((<Describe>_value).describe) {
-            const description = (<Describe>_value).describe();
-            return (description === null) ? 'NULL' : description.toString();
-        }
-            //
-        // 4)
-        else
-            return _value.toString();
+    // 3)
+    if (typeof _value.describe === 'function') {
+      const description = _value.describe();
+      return description === null || description === undefined ? 'NULL' : String(description);
     }
+
+    // 4)
+    return String(_value);
+  }
 }

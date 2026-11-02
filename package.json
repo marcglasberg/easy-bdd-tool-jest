@@ -1,6 +1,6 @@
 {
   "name": "easy-bdd-tool-jest",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Easy BDD Tool, for Jest. Create your BDD tests directly in code, and get readable error messages. Exports to Gherkin/Cucumber feature files.",
   "exports": {
     ".": {
@@ -12,6 +12,10 @@
         "types": "./lib/cjs/types/index.d.ts",
         "default": "./lib/cjs/index.js"
       }
+    },
+    "./jest-reporter": {
+      "types": "./lib/cjs/types/jest-reporter.d.ts",
+      "default": "./lib/cjs/jest-reporter.js"
     }
   },
   "types": "./lib/cjs/types/index.d.ts",
@@ -49,6 +53,10 @@
     "url": "https://github.com/marcglasberg/easy-bdd-tool-jest/issues"
   },
   "homepage": "https://github.com/marcglasberg/easy-bdd-tool-jest#readme",
+  "dependencies": {
+    "@cucumber/gherkin": "42.0.1",
+    "@cucumber/messages": "34.2.1"
+  },
   "peerDependencies": {
     "jest": "^29.0.0 || ^30.0.0"
   },

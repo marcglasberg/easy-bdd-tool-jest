@@ -16,6 +16,7 @@
     "./src/Bdd.ts",
     "./src/ConsoleReporter.ts",
     "./src/FeatureFileReporter.ts",
-    "./src/index.ts"
+    "./src/index.ts",
+    "./src/jest-reporter.ts"
   ]
 }

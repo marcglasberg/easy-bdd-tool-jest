@@ -1,31 +1,10 @@
-import { TableValues } from "./TableValues";
-import { Feature } from "./Feature";
-import { Row } from "./row";
-import { Val } from "./val";
-import { Context } from "./Context";
-import { BddReporter } from "./BddReporter";
-import { Config } from "./Config";
-export declare class TableRows {
-    private readonly _values;
-    constructor(values: TableValues[]);
-    /**
-     * Example:
-     * ctx.table('notifications').row(0).val('read') as bool;
-     */
-    row(index: number): TableValues;
-    /**
-     * Return the first row it finds with the given name/value pair. Example:
-     * ctx.table('notifications').rowWhere(name: 'property', value: 'lastPrice').val('market') as Money;
-     * If no name/value pair is found, an error is thrown.
-     */
-    rowWhere(name: string, value?: object): TableValues;
-    /**
-     * Example:
-     * ctx.table('notifications').rows;
-     */
-    get rows(): TableValues[];
-    toString(): string;
-}
+import type { Feature } from './Feature';
+import { Row } from './row';
+import { Val } from './val';
+import type { Context } from './Context';
+import type { BddReporter } from './BddReporter';
+import { Config } from './Config';
+import type { BddExecution } from './BddExecution';
 export declare function Bdd(feature?: Feature): BDD;
 declare abstract class _BaseTerm {
     bdd: BDD;
@@ -55,10 +34,19 @@ export declare abstract class Term extends _BaseTerm {
     protected _padSize(config: Config): number;
     protected _keyword(config?: Config): string;
     protected _keyword_unpadded(term: string, config: Config): string;
+    /** Whether this term is a note, added with `.note()`. */
+    get isNote(): boolean;
+    /** Whether this term is a Gherkin step (Given, When, Then, And or But), and not a note. */
+    get isStep(): boolean;
     protected _capitalize(text: string): string;
+    /**
+     * A line break in the text is written as a space, so that it doesn't start a new step.
+     * The exception is a note: each line of a note becomes its own comment line.
+     */
     toString(config?: Config): string;
+    protected _line(config: Config, content: string): string;
 }
-declare abstract class CodeTerm extends _BaseTerm {
+export declare abstract class CodeTerm extends _BaseTerm {
     codeRun: CodeRun;
     protected constructor(bdd: BDD, codeRun: CodeRun);
 }
@@ -67,14 +55,26 @@ export declare class BDD {
     terms: _BaseTerm[];
     _timeout?: number;
     _skip: boolean;
+    _only: boolean;
+    /** True if this BDD holds the Background steps of a feature (see `Feature.background`). */
+    readonly isBackground: boolean;
+    /** The callbacks given to `.run()`. They belong to no step. */
     codeRuns: CodeRun[];
+    /** @internal */
+    readonly _executions: BddExecution[];
     /**
      * Nulls means the test was not run yet.
      * True means it passed.
      * False means it did not pass.
      */
     passed: boolean[];
-    constructor(feature?: Feature);
+    constructor(feature?: Feature, isBackground?: boolean);
+    /**
+     * Each run of this BDD, recorded while it runs: one for each example row, and one
+     * for each retry. Each has the result, duration and error of each code block.
+     * See [BddExecution].
+     */
+    get executions(): BddExecution[];
     addCode(code: CodeRun): void;
     /** Example: `List<Given> = bdd.allTerms<Given>().toList();` */
     allTerms<T extends Term>(type: {
@@ -89,7 +89,20 @@ export declare class BDD {
     /** The example, if it exists, may have any number of rows. */
     exampleRow(count: number | null): Set<Val> | null;
     numberOfExamples(): number;
+    /**
+     * Adds an example row. A BDD has a single `Examples` block, so the row is added
+     * to the existing block, or a new block is created if there is none yet.
+     */
+    addExampleValues(values: Val[]): Example;
     get skip(): BDD;
+    /**
+     * Runs only this BDD while you work on it, like `test.only` in Jest.
+     * The other BDDs in the same test file are skipped, unless they are also marked with `.only`.
+     *
+     * @deprecated Not really deprecated. It's marked like this only as a reminder
+     * to remove the `.only` before committing your code.
+     */
+    get only(): BDD;
     /** Timeout in milliseconds */
     timeout(duration?: number): BDD;
     /** Timeout in seconds */
@@ -142,9 +155,22 @@ declare class Scenario extends Term {
      * making it easier for others to understand the purpose and scope of the test.
      */
     note(_: string): Given;
+    /**
+     * This keyword indicates the specific action taken by the user or the system.
+     * It's the trigger for the behavior that you're specifying. A scenario may start
+     * directly with `when`, without a `given` step.
+     */
+    when(_: string): When;
+    /**
+     * This keyword is used to describe the expected outcome or result.
+     * A scenario may start directly with `then`, without `given` or `when` steps.
+     */
+    then(_: string): Then;
     toString(config?: Config): string;
 }
 declare class Given extends Term {
+    /** Whether this term is a Gherkin step (Given, When, Then, And or But), and not a note. */
+    get isStep(): boolean;
     constructor(bdd: BDD, text: string, variation?: _Variation);
     static _internal(bdd: BDD, text: string, variation: _Variation): Given;
     spaces(config: Config): string;
@@ -201,6 +227,7 @@ declare class Given extends Term {
      */
     then(_: string): Then;
     code(code: CodeRun): _GivenCode;
+    run(code?: CodeRun): void;
     toString(config?: Config): string;
 }
 declare class _GivenCode extends CodeTerm {
@@ -245,9 +272,19 @@ declare class _GivenCode extends CodeTerm {
      * initial context is set by the 'Given' step.
      */
     when(_: string): When;
+    /**
+     * This keyword is used to describe the expected outcome or result after the
+     * 'When' step is executed. It's used to assert that a certain outcome should
+     * occur, which helps to validate whether the system behaves as expected.
+     * An example is, "Then I should be redirected to the dashboard".
+     */
+    then(_: string): Then;
     code(code: CodeRun): _GivenCode;
+    run(code?: CodeRun): void;
 }
 declare class When extends Term {
+    /** Whether this term is a Gherkin step (Given, When, Then, And or But), and not a note. */
+    get isStep(): boolean;
     constructor(bdd: BDD, text: string, variation?: _Variation);
     static _internal(bdd: BDD, text: string, variation: _Variation): When;
     spaces(config: Config): string;
@@ -297,7 +334,7 @@ declare class When extends Term {
      */
     then(_: string): Then;
     code(code: CodeRun): _WhenCode;
-    run(code: CodeRun): void;
+    run(code?: CodeRun): void;
     toString(config?: Config): string;
 }
 declare class _WhenCode extends CodeTerm {
@@ -343,8 +380,11 @@ declare class _WhenCode extends CodeTerm {
      */
     then(_: string): Then;
     code(code: CodeRun): _WhenCode;
+    run(code?: CodeRun): void;
 }
 declare class Then extends Term {
+    /** Whether this term is a Gherkin step (Given, When, Then, And or But), and not a note. */
+    get isStep(): boolean;
     constructor(bdd: BDD, text: string, variation?: _Variation);
     protected static _internal(bdd: BDD, text: string, variation: _Variation): Then;
     spaces(config: Config): string;
@@ -445,8 +485,8 @@ declare class Then extends Term {
      */
     example(v1: Val, v2?: Val, v3?: Val, v4?: Val, v5?: Val, v6?: Val, v7?: Val, v8?: Val, v9?: Val, v10?: Val, v11?: Val, v12?: Val, v13?: Val, v14?: Val, v15?: Val): Example;
     code(code: CodeRun): _ThenCode;
-    run(code: CodeRun): void;
-    testRun(code: CodeRun, reporter: BddReporter): BDD;
+    run(code?: CodeRun): void;
+    testRun(code: CodeRun, reporter?: BddReporter): BDD;
     toString(config?: Config): string;
 }
 declare class _ThenCode extends CodeTerm {
@@ -522,7 +562,7 @@ declare class _ThenCode extends CodeTerm {
      * For example, "And I should see a confirmation message" could follow
      * a 'Then' step to further specify the expected outcomes.
      */
-    and(_: string): When;
+    and(_: string): Then;
     /**
      * This keyword is used similarly to "And," but it is typically used for
      * negative conditions or to express a contrast with the previous step.
@@ -532,7 +572,7 @@ declare class _ThenCode extends CodeTerm {
      * This helps in creating more comprehensive scenarios by covering both
      * what should happen and what should not happen under certain conditions.
      */
-    but(_: string): When;
+    but(_: string): Then;
     /**
      * Often used informally in comments within a Gherkin document to provide
      * additional information, clarifications, or explanations about the scenario
@@ -541,16 +581,16 @@ declare class _ThenCode extends CodeTerm {
      * giving context or explaining the rationale behind a certain test scenario,
      * making it easier for others to understand the purpose and scope of the test.
      */
-    note(_: string): When;
+    note(_: string): Then;
     code(code: CodeRun): _ThenCode;
-    run(code: CodeRun): void;
-    testRun(code: CodeRun, reporter: BddReporter): BDD;
+    run(code?: CodeRun): void;
+    testRun(code: CodeRun, reporter?: BddReporter): BDD;
 }
 export declare class TableTerm extends Term {
     tableName: string;
     rows: Row[];
     constructor(bdd: BDD, tableName: string);
-    run(code: CodeRun): void;
+    run(code?: CodeRun): void;
     /**
      * Here we have something like:
      * [
@@ -569,8 +609,11 @@ export declare class TableTerm extends Term {
 }
 declare class Example extends Term {
     rows: Set<Val>[];
-    constructor(bdd: BDD, v1: Val, v2?: Val, v3?: Val, v4?: Val, v5?: Val, v6?: Val, v7?: Val, v8?: Val, v9?: Val, v10?: Val, v11?: Val, v12?: Val, v13?: Val, v14?: Val, v15?: Val);
-    run(code: CodeRun): void;
+    /** Creates the `Examples` block, with its first row. Use `bdd.addExampleValues()` instead. */
+    constructor(bdd: BDD, values: Val[]);
+    /** @internal */
+    _addRow(values: Val[]): Example;
+    run(code?: CodeRun): void;
     /**
      * Here we have something like:
      * [
@@ -643,7 +686,7 @@ declare class Example extends Term {
      * ```
      */
     example(v1: Val, v2?: Val, v3?: Val, v4?: Val, v5?: Val, v6?: Val, v7?: Val, v8?: Val, v9?: Val, v10?: Val, v11?: Val, v12?: Val, v13?: Val, v14?: Val, v15?: Val): Example;
-    testRun(code: CodeRun, reporter: BddReporter): BDD;
+    testRun(code: CodeRun, reporter?: BddReporter): BDD;
     toString(config?: Config): string;
 }
 declare class GivenTable extends TableTerm {
@@ -813,9 +856,33 @@ declare class ThenTable extends TableTerm {
     example(v1: Val, v2?: Val, v3?: Val, v4?: Val, v5?: Val, v6?: Val, v7?: Val, v8?: Val, v9?: Val, v10?: Val, v11?: Val, v12?: Val, v13?: Val, v14?: Val, v15?: Val): Example;
     code(code: CodeRun): _ThenCode;
     toString(config?: Config): string;
-    run(code: CodeRun): void;
-    testRun(code: CodeRun, reporter: BddReporter): BDD;
+    run(code?: CodeRun): void;
+    testRun(code: CodeRun, reporter?: BddReporter): BDD;
 }
-type CodeRun = ((ctx: Context) => Promise<void> | void) | undefined;
+export type CodeRun = ((ctx: Context) => Promise<void> | void) | undefined;
+/**
+ * The Background of a feature: steps that are common to all its scenarios.
+ * Get it with `feature.background`.
+ *
+ * In the feature file the Background is written once, before the scenarios.
+ * Its code (added with `.code()`) runs before the code of each scenario of the
+ * feature, and before each example row.
+ */
+export declare class Background {
+    /** The BDD that holds the Background steps. */
+    readonly bdd: BDD;
+    constructor(bdd: BDD);
+    /**
+     * This keyword starts a step that sets up the initial context of the
+     * scenarios. For example, "Given I am logged into the website".
+     */
+    given(_: string): Given;
+    /**
+     * Often used informally in comments within a Gherkin document to provide
+     * additional information, clarifications, or explanations about the steps.
+     */
+    note(_: string): Given;
+    toString(config?: Config): string;
+}
 export {};
 //# sourceMappingURL=Bdd.d.ts.map

@@ -592,6 +592,72 @@ Feature: Buying and Selling Stocks
     And The cash-balance is now 90 dollars.
 ```
 
+### Starting with When or Then
+
+A scenario doesn't need a `given`. It may start directly with `when`, or even with `then`:
+
+```typescript
+Bdd(feature)
+    .scenario('Adding numbers.')
+    .when('The user adds 2 and 3.')
+    .then('The result is 5.')
+    .run((ctx) => {
+        expect(add(2, 3)).toBe(5);
+    });
+```
+
+Also, `run` may be called right after a `given` or a `when`, if the BDD has no `then`.
+
+### Code for each step
+
+Instead of putting all the test code in the `run` callback, you may add the code of each step
+right after it, with `code`. The code of the steps runs in order, and then the `run` callback
+runs (if you provide one). If the code of a step fails, the code of the next steps doesn't run.
+
+```typescript
+Bdd(feature)
+    .scenario('Buying stocks.')
+    .given('The user has 120 dollars in cash-balance.')
+    .code(() => store.portfolio.cashBalance.setAmount(120.00))
+    .when('The user buys 1 IBM.')
+    .code(() => store.portfolio.buy(ibm, 1))
+    .then('The user now has 1 IBM.')
+    .code(() => expect(store.portfolio.howManyStocks('IBM')).toBe(1))
+    .run();
+```
+
+### Skipping a BDD, or running only one
+
+To skip a BDD, add `.skip` after `Bdd(feature)`:
+
+```typescript
+Bdd(feature).skip
+    .scenario('Buying stocks.')
+    ...
+```
+
+While you work on a BDD, you can add `.only` to run just that one. The other BDDs in the same
+test file are skipped, unless they are also marked with `.only`. This is the same as `test.only` in Jest.
+
+```typescript
+Bdd(feature).only
+    .scenario('Buying stocks.')
+    ...
+```
+
+Since `.only` is meant to be temporary, your IDE shows it with a strikethrough, as a reminder to
+remove it before committing. You may also use the
+<a href="https://github.com/jest-community/eslint-plugin-jest/blob/main/docs/rules/no-focused-tests.md">jest/no-focused-tests</a>
+ESLint rule.
+
+To change the timeout of a BDD, use `.timeout(milliseconds)` or `.timeoutSec(seconds)`:
+
+```typescript
+Bdd(feature).timeoutSec(30)
+    .scenario('Buying stocks.')
+    ...
+```
+
 ---
 
 ## 8. BDD Tables
@@ -905,6 +971,199 @@ Bdd(feature)
         expect(store.portfolio.getStock('IBM').averagePrice).toBe(averagePrice);
     });
 ```
+
+---
+
+## 10. Feature description and Background
+
+A feature may have a description, below its title:
+
+```typescript
+const feature = new Feature('Buying and Selling Stocks', 'The user can buy and sell stocks.');
+```
+
+Or the description may be a **User Story**:
+
+```typescript
+const feature = Feature.userStory('Average Price', {
+    asA: 'Stock Investor',
+    iWant: 'to see my portfolio average price updated',
+    soThat: 'I can make better investment decisions',
+});
+```
+
+```gherkin
+Feature: Average Price
+  As a Stock Investor
+  I want to see my portfolio average price updated
+  So that I can make better investment decisions
+```
+
+When all the scenarios of a feature start with the same steps, you may write them only once, in
+the feature's **Background**. The code of the Background steps runs before the code of each
+scenario of the feature (and before each example row):
+
+```typescript
+const feature = new Feature('Buying and Selling Stocks');
+
+feature.background
+    .given('The user has 100,000 dollars in cash-balance.')
+    .code(() => store.portfolio.cashBalance.setAmount(100000));
+
+Bdd(feature)
+    .scenario('Buying stocks.')
+    .given('IBM price is 30 dollars.')
+    ...
+```
+
+```gherkin
+Feature: Buying and Selling Stocks
+
+  Background:
+    Given The user has 100,000 dollars in cash-balance.
+
+  Scenario: Buying stocks.
+    Given IBM price is 30 dollars.
+    ...
+```
+
+The tables of the Background are also available to the code of the scenarios, with `ctx.table(...)`.
+
+---
+
+## 11. Reporters
+
+Reporters let you decide where you want to see the results of your BDDs.
+The simplest way to use them is to add the **Easy BDD Tool** reporter to your Jest configuration
+(for example, in your `jest.config.js` file):
+
+```javascript
+module.exports = {
+  reporters: [
+    'default',
+    ['easy-bdd-tool-jest/jest-reporter', {
+      featureFiles: true,
+      cucumberResults: true,
+    }],
+  ],
+};
+```
+
+When all your tests finish, it prints a summary of the results of all your BDDs:
+
+```
+BDD RESULTS ══════════════════════════════════════════
+TOTAL: 8 tests (7 BDDs)
+PASSED: 4 tests
+FAILED: 3 tests
+SKIPPED: 1 tests
+══════════════════════════════════════════════════════
+```
+
+And, depending on the options you use:
+
+* `featureFiles` writes your BDDs into `.feature` files, in
+  <a href='https://en.wikipedia.org/wiki/Cucumber_(software)#Gherkin_language'>Gherkin language</a>,
+  one file for each feature. By default, they are saved into `./gen_features/`. You can commit them
+  to your repo, as documentation for your current project version. If you use Jira, you can install
+  <a href='https://marketplace.atlassian.com/apps/1221264/cucumber-for-jira-bdd-natively-in-jira'>
+  Cucumber for Jira</a> to show them inside of Jira.
+
+* `cucumberResults` writes the results of your BDDs in Cucumber's standard format, so that you can
+  create an HTML report of your tests. See the next section.
+
+Instead of `true`, you can pass these options:
+
+```javascript
+['easy-bdd-tool-jest/jest-reporter', {
+  summary: false, // Don't print the summary.
+  featureFiles: { dir: './docs/features/', clearAllOutputBeforeRun: true },
+  cucumberResults: { outputFile: './reports/results.ndjson' },
+}]
+```
+
+If `clearAllOutputBeforeRun` is `true`, all previous `.feature` files in that directory are
+deleted before the new ones are written. Don't use it in watch mode, since then Jest may run only
+some of your test files.
+
+### Reporters in a test file
+
+You can also add reporters to a single test file, with the `reporter()` function. In this case,
+they only see the BDDs of that file, and a summary of that file is printed at the end:
+
+```typescript
+reporter(new ConsoleReporter(), new FeatureFileReporter());
+```
+
+* `ConsoleReporter()` prints the BDDs of the file to the console.
+* `FeatureFileReporter()` writes the BDDs of the file into `.feature` files.
+  Change `FeatureFileReporter.dir` to choose the directory.
+
+You can create your own reporters by extending the `BddReporter` class.
+
+---
+
+## 12. HTML report
+
+With the `cucumberResults` option, the reporter writes the results of your BDDs (which scenarios
+and steps passed, failed or were skipped, how long they took, and the errors) in a format called
+<a href='https://github.com/cucumber/messages'>Cucumber Messages</a>. The default file is
+`./gen_cucumber_results/results.ndjson`.
+
+You can turn this file into an HTML report, to publish from your CI, or to share with people who
+don't read code. To that end, install Cucumber's
+<a href='https://github.com/cucumber/html-formatter'>HTML formatter</a>:
+
+```
+npm install --save-dev @cucumber/html-formatter @cucumber/message-streams
+```
+
+Then create a `render.mjs` file, and run it with `node render.mjs`:
+
+```javascript
+import fs from 'node:fs'
+import { pipeline } from 'node:stream/promises'
+import { CucumberHtmlStream } from '@cucumber/html-formatter'
+import { NdjsonToMessageStream } from '@cucumber/message-streams'
+
+await pipeline(
+  fs.createReadStream('gen_cucumber_results/results.ndjson', 'utf-8'),
+  new NdjsonToMessageStream(),
+  new CucumberHtmlStream(),
+  fs.createWriteStream('report.html', 'utf-8'),
+)
+```
+
+Some notes:
+
+* To see which **step** failed, put the code of each step in `.code()`. The code you give to
+  `.run()` doesn't belong to any step, so the report shows it separately.
+
+* If the results can't be reported correctly, the report is not created, and Jest shows an error
+  explaining why. For example, when two test files use the same feature with different
+  Backgrounds.
+
+* The report contains your BDD descriptions, example values and error messages. Don't put
+  passwords or personal data in them, if you are going to share the report.
+
+* It needs Node.js 20.19 or later (or 22.12 or later, in Node.js 22).
+
+---
+
+## 13. Console output
+
+When you run your BDDs in the IDE, your tests will be listed in the left panel, numbered as `1`,
+`2` etc. Since BDDs with examples run more than once, each run is numbered with an index. For
+example, if the fourth BDD has two examples, you'll get `4₁` and `4₂`.
+
+The description of each BDD is printed to the console before it runs.
+
+* For tests that **pass** you'll get a `✔ TEST 1 PASSED!` message.
+
+* For tests that **fail** you'll get a `⚠ TEST 1 FAILED!` message, and Jest shows the error.
+  The stack trace shows only your own code, and not the code of the Easy BDD Tool.
+
+---
 
 ## Final notes
 

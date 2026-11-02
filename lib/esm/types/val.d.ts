@@ -1,18 +1,19 @@
-import { Config } from "./Config";
+import { Config } from './Config';
 export declare function val(name: string, _: any): Val;
 export declare class Val {
     name: string;
     value: any;
     constructor(name: string, value: any);
     /**
-     * These 3 steps will be applied to format a value in Examples and Tables:
+     * These steps will be applied to format a value in Examples and Tables:
      *
      * 1) If a [Config.transformDescribe] was provided, it will be used to format the value.
+     *    If it returns `null` or `undefined`, the value is not changed.
      *
-     * 2) Next, if the value is null, return 'NULL'.
+     * 2) Next, if the value is `null`, return 'NULL'. If it's `undefined`, return 'undefined'.
      *
-     * 3) Next, if the value implements the [BddDescribe] interface, or if it has a
-     * [describe] method, it will be used to format the value.
+     * 3) Next, if the value implements the [Describe] interface (in other words, if it has a
+     *    [describe] method), it will be used to format the value.
      *
      * 4) Last, we'll call the value's [toString] method.
      */

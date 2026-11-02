@@ -1,20 +1,28 @@
-import {BddReporter} from "./BddReporter";
-import {Feature} from "./Feature";
+import { BddReporter } from './BddReporter';
+import { Config } from './Config';
 
+/** Prints the features and their BDDs to the console, after all tests of the test file run. */
 export class ConsoleReporter extends BddReporter {
+  static config = new Config({ rightAlignKeywords: true });
+
   public async report(): Promise<void> {
-    let output: string = '';
+    const config = ConsoleReporter.config;
+    let output = '';
+    let count = 0;
 
-    this.features.forEach((feature: Feature) => {
-      if (feature.testResults.length > 0) {
-        const featureStr = feature.toString();
-        output += featureStr + '\n';
+    for (const feature of Array.from(this.features)) {
+      count++;
+      output += `Feature ${count} --------------\n\n`;
 
-        feature.testResults.forEach(testResult => {
-          output += testResult.toString() + '\n';
-        });
+      if (feature.isNotEmpty) {
+        output += feature.toString(config) + '\n';
+        if (feature.hasBackground) output += feature.background.toString(config) + '\n';
       }
-    });
+
+      for (const testResult of feature.testResults) {
+        output += testResult.toString(config) + '\n';
+      }
+    }
 
     process.stdout.write(output);
   }
