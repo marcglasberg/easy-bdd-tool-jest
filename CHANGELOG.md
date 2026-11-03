@@ -1,4 +1,4 @@
-## [1.3.0] - 2026/11/02
+## [1.3.1] - 2026/11/02
 
 * BDDs can test your app through its UI, with Detox (React Native) or Playwright (web), by using
   them in the code of each step. See the new examples in the `examples` directory, and the README.
@@ -118,6 +118,3 @@
 ## [1.0.2] - 2023/12/12
 
 * Initial version.
-
-
-

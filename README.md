@@ -5,7 +5,14 @@ Click <a href="https://medium.com/@marcglasberg/a-new-bdd-tool-for-typescript-ja
 <br>
 
 This package aims to be the simplest way to write <a href='https://en.wikipedia.org/wiki/Behavior-driven_development'>
-Behavior Driven Development</a> (BDD) tests **in Jest** for your TypeScript and JavaScript projects.
+Behavior Driven Development</a> (BDD) tests **in Jest** for your TypeScript and JavaScript projects,
+built for AI agents like **Claude Code** and **Codex**:
+
+- The agent writes the tests it would write anyway, but describes them as BDD features
+- This forces the agent to be **very** precise about what each feature does
+- Running the tests generates human-readable `.feature` files, which work as specs that never go stale
+- Reading these specs spends far fewer tokens than reading the code, saving money
+- For the human: the specs are easy to read and review, and can be shared with clients
 
 Most other npm packages are not BDD specific, or they're just too hard to use (like <a href="https://cucumber.io/docs/guides/overview/">Cucumber</a>, in my opinion).
 
@@ -26,6 +33,51 @@ A screenshot for the IntelliJ IDE:
 
 > _Note there is also a version of this package for <a href="https://pub.dev/packages/bdd_framework">Flutter/Dart</a>._
  
+---
+
+## Tests as specs, for AI agents
+
+Modern AI agents already write good and complete tests, even without you asking. 
+With a little direction, these tests can serve as **specs** too.
+
+Consider a function that adds two numbers, and a unit test for it. That function is an
+implementation detail, not a feature. But a test checking that _"the sum of all deposits and
+withdrawals results in the account balance"_ is testing that a **feature** works. Running it
+tells the agent the feature is implemented, and reading its description tells the agent what the
+app does, spending far fewer tokens than reading the code that implements it.
+
+In traditional BDD, people first write `.feature` files, and then developers write glue code to
+turn them into tests. With this package it's the other way around: the agent writes the tests in
+code, and the feature descriptions are part of that code. Since the descriptions sit right next
+to the code that verifies them, the agent must be very precise. This is a form of **specification driven
+development** that comes for free, simply from writing the tests the agent would write anyway.
+And running those tests generates the `.feature` files in your repo.
+
+BDD used to be a complex and expensive technique. With AI agents it's basically free. Set it up
+once and forget it. Ask your agent to install
+[easy-bdd-tool-jest](https://www.npmjs.com/package/easy-bdd-tool-jest), and add this to your
+`AGENTS.md` or `CLAUDE.md`:
+
+> *"Use the installed package easy-bdd-tool-jest to create **all tests that represent app
+> features**. Do not use it for simple unit tests that are implementation details and not
+> features. Run tests in such a way that it creates `.feature` files in a separate
+> `gen_features` dir inside the project. When you need to read about app features, prefer
+> reading the `.feature` files directly. Only read the test files themselves if the
+> implementation details of the tests are important for your task in progress."*
+
+The `gen_features` directory will then contain all the app specs in human-readable form, one file
+per feature. These specs can't become stale, since they are executable, and they always reflect
+what the code really does. They give the agent a lot of context without filling up its context
+window. They get committed to git, which keeps a record of past features the agent can easily
+parse, if needed.
+
+If you are creating an app for a client, you can give them the `gen_features` directory, which
+contains only human-readable text. Their own AIs can then learn all the details of the features
+you are implementing, without reading any code.
+
+The rest of this document explains BDD, and how to use this package, in detail. Your agent can
+read it too.
+
 ---
 
 ## What is it?
@@ -51,6 +103,7 @@ that business stakeholders will also appreciate and prefer the streamlined proce
 
 Here's what makes this Easy BDD Tool stand out:
 
+- It's ideal for AI agents, which can write precise BDDs in code as easily as unit tests.
 - You can create BDD tests entirely in code, no need for `.feature` files.
 - It is _developer-centric_, catering primarily to the needs of developers, rather than business
   stakeholders.
@@ -220,6 +273,10 @@ translating the BDDs into code – that's when the finer points truly come to li
 business stakeholders stay in the loop by reviewing the feature files stored in the repo.
 
 From my experience, this revised process makes it writing BDDs as easy as writing unit tests!
+
+And this is even more true when the "developer" is an AI agent. Everything above that the
+developer does, the agent can do: write the BDDs in code, fix missing details, add more BDDs, and
+generate the feature files for the humans to review.
 
 ---
 
@@ -1065,7 +1122,8 @@ And, depending on the options you use:
 * `featureFiles` writes your BDDs into `.feature` files, in
   <a href='https://en.wikipedia.org/wiki/Cucumber_(software)#Gherkin_language'>Gherkin language</a>,
   one file for each feature. By default, they are saved into `./gen_features/`. You can commit them
-  to your repo, as documentation for your current project version. If you use Jira, you can install
+  to your repo, as documentation for your current project version. AI agents can read them to
+  learn what the app does, instead of reading the code. If you use Jira, you can install
   <a href='https://marketplace.atlassian.com/apps/1221264/cucumber-for-jira-bdd-natively-in-jira'>
   Cucumber for Jira</a> to show them inside of Jira.
 
@@ -1299,4 +1357,3 @@ and also when you right-click on folders containing these standard tests.
   The New Way to create Themes in your Flutter App</a> 
 * <a href="https://flutter.dev/docs/development/ui/layout/constraints">Understanding constraints</a> (in the official
   Flutter documentation)
-
